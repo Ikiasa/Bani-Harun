@@ -1,0 +1,178 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@theme {
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+
+  --animate-accordion-down: accordion-down 0.2s ease-out;
+  --animate-accordion-up: accordion-up 0.2s ease-out;
+
+  @keyframes accordion-down {
+    from {
+      height: 0;
+    }
+
+    to {
+      height: var(--radix-accordion-content-height);
+    }
+  }
+
+  @keyframes accordion-up {
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+
+    to {
+      height: 0;
+    }
+  }
+}
+
+@layer base {
+  :root {
+    --background: hsl(35 30% 94%);
+    /* Warm Parchment-like background */
+    --foreground: hsl(20 24% 10%);
+
+    --card: hsl(35 30% 98%);
+    --card-foreground: hsl(20 24% 10%);
+
+    --popover: hsl(35 30% 98%);
+    --popover-foreground: hsl(20 24% 10%);
+
+    --primary: hsl(38 92% 50%);
+    /* Vibrant Gold/Amber */
+    --primary-foreground: hsl(0 0% 100%);
+
+    --secondary: hsl(35 30% 90%);
+    /* Soft Amber Tint */
+    --secondary-foreground: hsl(38 92% 50%);
+
+    --muted: hsl(35 15% 88%);
+    --muted-foreground: hsl(25 10% 45%);
+
+    --accent: hsl(38 92% 95%);
+    --accent-foreground: hsl(38 92% 35%);
+
+    --destructive: hsl(0 84.2% 60.2%);
+    --destructive-foreground: hsl(210 40% 98%);
+
+    --border: hsl(35 15% 82%);
+    --input: hsl(35 15% 82%);
+    --ring: hsl(38 92% 50%);
+
+    --radius: 1.25rem;
+    /* Even rounder for premium feel */
+  }
+
+  .dark {
+    /* Deep Charcoal-Gold Theme */
+    --background: hsl(24 10% 4%);
+    /* Near black warm charcoal */
+    --foreground: hsl(30 20% 98%);
+
+    --card: hsl(24 10% 8%);
+    --card-foreground: hsl(30 20% 98%);
+
+    --popover: hsl(24 10% 8%);
+    --popover-foreground: hsl(30 20% 98%);
+
+    --primary: hsl(45 93% 47%);
+    /* Rich Gold */
+    --primary-foreground: hsl(24 10% 4%);
+
+    --secondary: hsl(24 10% 12%);
+    --secondary-foreground: hsl(45 93% 47%);
+
+    --muted: hsl(24 10% 15%);
+    --muted-foreground: hsl(30 10% 65%);
+
+    --accent: hsl(45 93% 47%);
+    --accent-foreground: hsl(24 10% 4%);
+
+    --destructive: hsl(0 62.8% 30.6%);
+    --destructive-foreground: hsl(210 40% 98%);
+
+    --border: hsl(24 10% 15%);
+    --input: hsl(24 10% 15%);
+    --ring: hsl(45 93% 47%);
+  }
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+  }
+}
+
+@media print {
+
+  .no-print,
+  nav,
+  header,
+  aside,
+  button,
+  .admin-actions,
+  [role="navigation"] {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  .print-content {
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 2cm !important;
+  }
+
+  main {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Ensure tree fits or breaks nicely */
+  .tree-container {
+    overflow: visible !important;
+    position: static !important;
+  }
+}
