@@ -4,13 +4,12 @@ import { useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
 import {
     Search,
-    Filter,
     Edit2,
     UserPlus,
-    Mail,
-    Phone,
-    ShieldCheck,
-    Loader2
+    X,
+    Loader2,
+    Trash2,
+    Check
 } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 
@@ -18,135 +17,219 @@ export default function MemberManagement() {
     const [searchTerm, setSearchTerm] = useState("")
     const [members, setMembers] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
+    const [isSubmitting, setIsSubmitting] = useState(false)
+
+    // Modal states
+    const [isModalOpen, setIsModalOpen] = useState(false)
+    const [modalMode, setModalMode] = useState<'add' | 'edit'>('add')
+    const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+    const [targetMember, setTargetMember] = useState<any>(null)
+
+    const [formData, setFormData] = useState({
+        name: "",
+        role: "Member",
+        generation: 1,
+        status: "Active",
+        parent_id: null as string | null
+    })
+
+    const fetchMembers = async () => {
+        setLoading(true)
+        const { data, error } = await supabase
+            .from('family_members')
+            .select('*')
+            .order('name')
+
+        if (data) setMembers(data)
+        setLoading(false)
+    }
 
     useEffect(() => {
-        const fetchMembers = async () => {
-            const { data, error } = await supabase
-                .from('family_members')
-                .select('*')
-                .order('name')
-
-            if (error) {
-                console.error(error)
-            } else {
-                setMembers(data || [])
-            }
-            setLoading(false)
-        }
-
         fetchMembers()
     }, [])
+
+    const handleOpenAdd = () => {
+        setModalMode('add')
+        setFormData({ name: "", role: "Member", generation: 1, status: "Active", parent_id: null })
+        setIsModalOpen(true)
+    }
+
+    const handleOpenEdit = (member: any) => {
+        setModalMode('edit')
+        setTargetMember(member)
+        setFormData({
+            name: member.name,
+            role: member.role,
+            generation: member.generation,
+            status: member.status,
+            parent_id: member.parent_id
+        })
+        setIsModalOpen(true)
+    }
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        setIsSubmitting(true)
+
+        if (modalMode === 'add') {
+            const { error } = await supabase.from('family_members').insert([formData])
+            if (error) alert(error.message)
+        } else {
+            const { error } = await supabase.from('family_members').update(formData).eq('id', targetMember.id)
+            if (error) alert(error.message)
+        }
+
+        setIsSubmitting(false)
+        setIsModalOpen(false)
+        fetchMembers()
+    }
+
+    const handleDelete = async () => {
+        setIsSubmitting(true)
+        const { error } = await supabase.from('family_members').delete().eq('id', targetMember.id)
+        if (!error) {
+            setIsDeleteModalOpen(false)
+            fetchMembers()
+        } else {
+            alert(error.message)
+        }
+        setIsSubmitting(false)
+    }
 
     const filteredMembers = members.filter(m =>
         m.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         m.role?.toLowerCase().includes(searchTerm.toLowerCase())
     )
 
+    if (loading) return <div className="p-20 text-center"><Loader2 className="w-10 h-10 animate-spin mx-auto text-primary/40" /></div>
+
     return (
-        <div className="grid gap-6 animate-in slide-in-from-bottom-2 duration-500">
+        <div className="grid gap-6 animate-in slide-in-from-bottom-2 duration-500 pb-20">
             <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] items-center gap-4">
                 <div className="grid gap-1">
                     <h1 className="text-3xl font-bold tracking-tight">Manajemen Anggota</h1>
-                    <p className="text-muted-foreground italic">Tambah, edit, atau kelola anggota keluarga Bani Harun.</p>
+                    <p className="text-muted-foreground italic text-sm">Kelola data keluarga Bani Harun.</p>
                 </div>
-                <button className="grid grid-flow-col items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-semibold hover:opacity-90 transition-opacity whitespace-nowrap">
+                <button
+                    onClick={handleOpenAdd}
+                    className="flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl shadow-lg shadow-primary/20 hover:scale-105 active:scale-95 transition-all font-bold"
+                >
                     <UserPlus className="w-5 h-5" />
                     <span>Tambah Anggota</span>
                 </button>
             </div>
 
-            {/* Filters & Search */}
             <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-4">
                 <div className="relative group min-w-0">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
                     <input
                         type="text"
-                        placeholder="Cari anggota berdasarkan nama atau peran..."
+                        placeholder="Cari nama atau peran..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="w-full h-11 pl-10 pr-4 bg-muted/30 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium"
+                        className="w-full h-11 pl-10 pr-4 bg-muted/30 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all font-medium shadow-inner"
                     />
                 </div>
-                <button className="grid grid-flow-col items-center justify-center gap-2 px-4 h-11 border rounded-xl hover:bg-muted transition-colors font-medium">
-                    <Filter className="w-4 h-4" />
-                    <span>Filter</span>
-                </button>
             </div>
 
-            {/* Members Table/Grid */}
-            <div className="overflow-hidden border rounded-2xl bg-card shadow-sm">
+            <div className="overflow-hidden border rounded-3xl bg-card shadow-sm">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead className="bg-muted/50 border-b">
                             <tr>
-                                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Anggota</th>
-                                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Peran/Generasi</th>
-                                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Status</th>
-                                <th className="px-6 py-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Aktivitas Terakhir</th>
-                                <th className="px-6 py-4 text-right"></th>
+                                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Anggota</th>
+                                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Peran</th>
+                                <th className="px-6 py-4 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Status</th>
+                                <th className="px-6 py-4 text-right">Aksi</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y relative">
-                            {loading && (
-                                <tr>
-                                    <td colSpan={5} className="py-20 text-center">
-                                        <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary/40" />
-                                    </td>
-                                </tr>
-                            )}
+                        <tbody className="divide-y">
                             {filteredMembers.map((member) => (
                                 <tr key={member.id} className="hover:bg-muted/30 transition-colors group">
                                     <td className="px-6 py-4">
-                                        <div className="grid grid-cols-[auto_1fr] items-center gap-3">
-                                            <div className="w-10 h-10 rounded-full bg-primary/10 grid place-items-center text-primary font-bold">
-                                                {member.name.charAt(0)}
-                                            </div>
-                                            <div className="grid min-w-0">
-                                                <span className="text-sm font-semibold">{member.name}</span>
-                                                <span className="text-xs text-muted-foreground">member-{member.id}@baniharun.com</span>
-                                            </div>
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold">{member.name[0]}</div>
+                                            <span className="font-bold text-sm tracking-tight">{member.name}</span>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <div className="grid gap-1">
-                                            <div className="grid grid-flow-col justify-start items-center gap-1.5 ">
-                                                <ShieldCheck className="w-3.5 h-3.5 text-primary" />
-                                                <span className="text-sm font-medium">{member.role === "Member" ? "Anggota" : member.role}</span>
-                                            </div>
-                                            <span className="text-xs text-muted-foreground italic">Gen {member.generation}</span>
+                                        <div className="grid text-xs">
+                                            <span className="font-bold">{member.role}</span>
+                                            <span className="text-muted-foreground font-bold italic tracking-tighter opacity-70">GEN {member.generation}</span>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className={cn(
-                                            "px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest",
-                                            member.status === "Active" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                                            "px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest",
+                                            member.status === "Active" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
                                         )}>
-                                            {member.status === "Active" ? "Aktif" : "Tidak Aktif"}
+                                            {member.status === "Active" ? "Aktif" : "Wafat"}
                                         </span>
                                     </td>
-                                    <td className="px-6 py-4 text-sm text-muted-foreground font-medium">
-                                        {member.last_active || "Belum aktif"}
-                                    </td>
                                     <td className="px-6 py-4 text-right">
-                                        <button
-                                            disabled
-                                            className="inline-flex items-center gap-2 p-2 px-3 text-xs font-bold text-muted-foreground bg-muted rounded-lg cursor-not-allowed opacity-0 group-hover:opacity-100 transition-all font-bold"
-                                        >
-                                            <Edit2 className="w-3.5 h-3.5" />
-                                            Admin Only
-                                        </button>
+                                        <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <button onClick={() => handleOpenEdit(member)} className="p-2 hover:bg-muted rounded-lg text-muted-foreground transition-colors"><Edit2 className="w-4 h-4" /></button>
+                                            <button onClick={() => { setTargetMember(member); setIsDeleteModalOpen(true); }} className="p-2 hover:bg-destructive/10 rounded-lg text-destructive transition-colors"><Trash2 className="w-4 h-4" /></button>
+                                        </div>
                                     </td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
                 </div>
-                {filteredMembers.length === 0 && (
-                    <div className="p-12 text-center text-muted-foreground font-medium italic">
-                        Tidak ada anggota keluarga yang cocok dengan pencarian Anda.
-                    </div>
-                )}
             </div>
+
+            {/* Modals */}
+            {isModalOpen && (
+                <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 backdrop-blur-sm p-4 animate-in fade-in">
+                    <div className="bg-card w-full max-w-md border rounded-3xl shadow-2xl p-8 grid gap-6 animate-in zoom-in-95">
+                        <div className="flex justify-between items-center">
+                            <h2 className="text-xl font-bold">{modalMode === 'add' ? 'Tambah Anggota' : 'Edit Anggota'}</h2>
+                            <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-muted rounded-full transition-colors"><X className="w-5 h-5" /></button>
+                        </div>
+                        <form onSubmit={handleSubmit} className="grid gap-5 text-sm">
+                            <div className="grid gap-1.5">
+                                <label className="font-bold text-muted-foreground uppercase text-[10px]">Nama Lengkap</label>
+                                <input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="h-11 px-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none transition-all" />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="grid gap-1.5">
+                                    <label className="font-bold text-muted-foreground uppercase text-[10px]">Peran</label>
+                                    <input value={formData.role} onChange={e => setFormData({ ...formData, role: e.target.value })} className="h-11 px-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none" />
+                                </div>
+                                <div className="grid gap-1.5">
+                                    <label className="font-bold text-muted-foreground uppercase text-[10px]">Generasi</label>
+                                    <input type="number" value={formData.generation} onChange={e => setFormData({ ...formData, generation: parseInt(e.target.value) })} className="h-11 px-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none" />
+                                </div>
+                            </div>
+                            <div className="grid gap-1.5">
+                                <label className="font-bold text-muted-foreground uppercase text-[10px]">Status</label>
+                                <select value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value })} className="h-11 px-4 bg-muted border rounded-xl font-bold">
+                                    <option value="Active">Aktif (Hidup)</option>
+                                    <option value="Inactive">Tidak Aktif (Wafat)</option>
+                                </select>
+                            </div>
+                            <button type="submit" disabled={isSubmitting} className="h-12 bg-primary text-white rounded-xl font-bold flex items-center justify-center gap-2 mt-4 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all">
+                                {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Check className="w-5 h-5" /> Simpan Data</>}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {isDeleteModalOpen && (
+                <div className="fixed inset-0 z-50 grid place-items-center bg-background/80 backdrop-blur-sm p-4 animate-in fade-in">
+                    <div className="bg-card w-full max-w-sm border rounded-3xl shadow-2xl p-8 text-center grid gap-4 animate-in zoom-in-95">
+                        <div className="w-16 h-16 bg-destructive/10 text-destructive rounded-full grid place-items-center mx-auto"><Trash2 className="w-8 h-8" /></div>
+                        <h2 className="text-xl font-extrabold">Hapus Anggota?</h2>
+                        <p className="text-muted-foreground text-sm leading-relaxed">Hapus <strong>{targetMember?.name}</strong> dari sistem? Aksi ini permanen.</p>
+                        <div className="flex gap-3 mt-6">
+                            <button onClick={() => setIsDeleteModalOpen(false)} className="flex-1 p-3.5 bg-secondary rounded-2xl font-bold text-sm hover:bg-secondary/80 transition-colors">Batal</button>
+                            <button onClick={handleDelete} className="flex-1 p-3.5 bg-destructive text-white rounded-2xl font-bold text-sm shadow-lg shadow-destructive/20 hover:bg-destructive/90 transition-all">Hapus</button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }
