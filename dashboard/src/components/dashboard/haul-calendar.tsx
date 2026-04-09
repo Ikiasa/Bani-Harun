@@ -1,6 +1,5 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Calendar, Heart, User } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -36,11 +35,11 @@ export function HaulCalendar({ members }: HaulCalendarProps) {
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
 
                 events.push({
-                    id: member.id,
+                    id: String(member.id),
                     name: member.name,
                     deathDate: bio.death_date,
                     daysAway: diffDays,
-                    isToday: diffDays === 0 || diffDays === 365 || diffDays === 366 // Simple today check
+                    isToday: diffDays === 0 || diffDays === 365 || diffDays === 366
                 })
             }
         })
@@ -53,17 +52,15 @@ export function HaulCalendar({ members }: HaulCalendarProps) {
     const upcomingHauls = calculateHaul()
 
     return (
-        <Card className="shadow-premium border-none bg-gradient-to-br from-white to-slate-50/50">
-            <CardHeader className="pb-3 border-b border-slate-100/50">
-                <div className="flex items-center justify-between">
-                    <CardTitle className="text-sm font-bold flex items-center gap-2 text-primary">
-                        <Calendar className="w-4 h-4" />
-                        Peringatan Haul Keluarga
-                    </CardTitle>
-                    <Heart className="w-4 h-4 text-destructive/40 animate-pulse" />
+        <div className="rounded-xl shadow-premium border border-slate-100 bg-gradient-to-br from-white to-slate-50/50 overflow-hidden">
+            <div className="p-4 pb-3 border-b border-slate-100/50 flex items-center justify-between">
+                <div className="text-sm font-bold flex items-center gap-2 text-primary">
+                    <Calendar className="w-4 h-4" />
+                    Peringatan Haul Keluarga
                 </div>
-            </CardHeader>
-            <CardContent className="pt-4">
+                <Heart className="w-4 h-4 text-destructive/40 animate-pulse" />
+            </div>
+            <div className="p-4 pt-4">
                 <div className="space-y-4">
                     {upcomingHauls.length > 0 ? (
                         upcomingHauls.map((event) => (
@@ -100,7 +97,8 @@ export function HaulCalendar({ members }: HaulCalendarProps) {
                         </div>
                     )}
                 </div>
-            </CardContent>
-        </Card>
+            </div>
+        </div>
     )
 }
+

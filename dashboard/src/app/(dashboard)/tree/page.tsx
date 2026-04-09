@@ -187,12 +187,12 @@ export default function FamilyTreePage() {
 
             if (formData.biography || formData.birth_date || formData.birth_place || formData.partner_name || formData.death_date) {
                 await supabase.from('family_biographies').upsert({
-                    member_id: memberId,
-                    bio: formData.biography,
+                    member_id: Number(memberId),
+                    bio: formData.biography || "",
                     birth_date: formData.birth_date || null,
-                    birth_place: formData.birth_place,
-                    partner_name: formData.partner_name,
-                    head_of_family: formData.head_of_family,
+                    birth_place: formData.birth_place || "",
+                    partner_name: formData.partner_name || "",
+                    head_of_family: formData.head_of_family || false,
                     death_date: formData.death_date || null
                 }, { onConflict: 'member_id' })
             }

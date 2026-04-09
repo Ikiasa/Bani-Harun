@@ -129,12 +129,12 @@ export default function MemberManagement() {
             if (formData.biography || formData.birth_date || formData.birth_place || formData.partner_name || formData.death_date) {
                 // Upsert biography
                 const { error: bioError } = await supabase.from('family_biographies').upsert({
-                    member_id: currentMemberId,
-                    bio: formData.biography,
+                    member_id: Number(currentMemberId),
+                    bio: formData.biography || "",
                     birth_date: formData.birth_date || null,
-                    birth_place: formData.birth_place,
-                    partner_name: formData.partner_name,
-                    head_of_family: formData.head_of_family,
+                    birth_place: formData.birth_place || "",
+                    partner_name: formData.partner_name || "",
+                    head_of_family: formData.head_of_family || false,
                     death_date: formData.death_date || null
                 }, { onConflict: 'member_id' })
                 if (bioError) throw bioError
