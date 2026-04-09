@@ -32,7 +32,11 @@ export default function MemberManagement() {
         status: "Active",
         parent_id: null as string | null,
         avatar: "",
-        biography: ""
+        biography: "",
+        birth_date: "",
+        birth_place: "",
+        partner_name: "",
+        head_of_family: false
     })
     const [uploadingImage, setUploadingImage] = useState(false)
 
@@ -40,7 +44,7 @@ export default function MemberManagement() {
         setLoading(true)
         const { data, error } = await supabase
             .from('family_members')
-            .select('*, family_biographies(bio)')
+            .select('*, family_biographies(*)')
             .order('id', { ascending: true })
 
         if (data) setMembers(data)
@@ -53,13 +57,14 @@ export default function MemberManagement() {
 
     const handleOpenAdd = () => {
         setModalMode('add')
-        setFormData({ name: "", role: "Member", generation: 1, status: "Active", parent_id: null, avatar: "", biography: "" })
+        setFormData({ name: "", role: "Member", generation: 1, status: "Active", parent_id: null, avatar: "", biography: "", birth_date: "", birth_place: "", partner_name: "", head_of_family: false })
         setIsModalOpen(true)
     }
 
     const handleOpenEdit = (member: any) => {
         setModalMode('edit')
         setTargetMember(member)
+        const bio = member.family_biographies?.[0] || {}
         setFormData({
             name: member.name,
             role: member.role,
@@ -67,7 +72,11 @@ export default function MemberManagement() {
             status: member.status,
             parent_id: member.parent_id,
             avatar: member.avatar || "",
-            biography: member.family_biographies?.[0]?.bio || ""
+            biography: bio.bio || "",
+            birth_date: bio.birth_date || "",
+            birth_place: bio.birth_place || "",
+            partner_name: bio.partner_name || "",
+            head_of_family: bio.head_of_family || false
         })
         setIsModalOpen(true)
     }
@@ -115,16 +124,17 @@ export default function MemberManagement() {
                 if (error) throw error
             }
 
-            if (formData.biography) {
+            if (formData.biography || formData.birth_date || formData.birth_place || formData.partner_name) {
                 // Upsert biography
                 const { error: bioError } = await supabase.from('family_biographies').upsert({
                     member_id: currentMemberId,
-                    bio: formData.biography
+                    bio: formData.biography,
+                    birth_date: formData.birth_date || null,
+                    birth_place: formData.birth_place,
+                    partner_name: formData.partner_name,
+                    head_of_family: formData.head_of_family
                 }, { onConflict: 'member_id' })
                 if (bioError) throw bioError
-            } else {
-                // Remove bio if empty
-                await supabase.from('family_biographies').delete().eq('member_id', currentMemberId)
             }
 
             setIsModalOpen(false)
@@ -262,6 +272,24 @@ export default function MemberManagement() {
                                         <option value="Inactive">Tidak Aktif (Wafat)</option>
                                     </select>
                                 </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="grid gap-1.5">
+                                    <label className="font-bold text-muted-foreground uppercase text-[10px]">Tempat Lahir</label>
+                                    <input placeholder="Contoh: Jakarta" value={formData.birth_place} onChange={e => setFormData({ ...formData, birth_place: e.target.value })} className="h-11 px-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none" />
+                                </div>
+                                <div className="grid gap-1.5">
+                                    <label className="font-bold text-muted-foreground uppercase text-[10px]">Tanggal Lahir</label>
+                                    <input type="date" value={formData.birth_date} onChange={e => setFormData({ ...formData, birth_date: e.target.value })} className="h-11 px-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none" />
+                                </div>
+                            </div>
+                            <div className="grid gap-1.5">
+                                <label className="font-bold text-muted-foreground uppercase text-[10px]">Nama Pasangan (Suami/Istri)</label>
+                                <input placeholder="Tulis nama pasangan..." value={formData.partner_name} onChange={e => setFormData({ ...formData, partner_name: e.target.value })} className="h-11 px-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none" />
+                            </div>
+                            <div className="flex items-center gap-2 px-1">
+                                <input type="checkbox" id="head_of_family" checked={formData.head_of_family} onChange={e => setFormData({ ...formData, head_of_family: e.target.checked })} className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary" />
+                                <label htmlFor="head_of_family" className="text-xs font-bold text-muted-foreground uppercase">Tandai Sebagai Kepala Keluarga</label>
                             </div>
                             <div className="grid gap-1.5">
                                 <label className="font-bold text-muted-foreground uppercase text-[10px]">Foto Profil (Upload)</label>

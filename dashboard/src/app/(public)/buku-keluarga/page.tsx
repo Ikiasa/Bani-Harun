@@ -3,6 +3,8 @@ import { DigitalBook } from "@/components/buku-keluarga/DigitalBook"
 import { BookPageData } from "@/lib/family-book-data"
 import { supabase } from "@/lib/supabase"
 
+export const dynamic = 'force-dynamic';
+
 async function fetchPages(): Promise<BookPageData[]> {
     try {
         const { data, error } = await supabase

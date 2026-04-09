@@ -37,7 +37,11 @@ export default function FamilyTreePage() {
         generation: 1,
         status: "Active",
         parent_id: null as string | null,
-        biography: ""
+        biography: "",
+        birth_date: "",
+        birth_place: "",
+        partner_name: "",
+        head_of_family: false
     })
 
 
@@ -97,7 +101,7 @@ export default function FamilyTreePage() {
         setLoading(true)
         const { data, error } = await supabase
             .from('family_members')
-            .select('*, family_biographies(bio)')
+            .select('*, family_biographies(*)')
             .order('id', { ascending: true });
         if (data) {
             const formatted = data.map((item: any) => ({
@@ -107,7 +111,11 @@ export default function FamilyTreePage() {
                 generation: item.generation,
                 status: item.status,
                 parentId: item.parent_id ? String(item.parent_id) : undefined,
-                biography: item.family_biographies?.[0]?.bio || ""
+                biography: item.family_biographies?.[0]?.bio || "",
+                birthDate: item.family_biographies?.[0]?.birth_date || "",
+                birthPlace: item.family_biographies?.[0]?.birth_place || "",
+                partnerName: item.family_biographies?.[0]?.partner_name || "",
+                headOfFamily: item.family_biographies?.[0]?.head_of_family || false
             }));
             setMembers(formatted)
         }
@@ -123,7 +131,11 @@ export default function FamilyTreePage() {
             generation: member.generation,
             status: member.status,
             parent_id: member.parentId || null,
-            biography: member.biography || ""
+            biography: member.biography || "",
+            birth_date: member.birthDate || "",
+            birth_place: member.birthPlace || "",
+            partner_name: member.partnerName || "",
+            head_of_family: member.headOfFamily || false
         })
         setIsModalOpen(true)
     }, [])
@@ -137,7 +149,11 @@ export default function FamilyTreePage() {
             generation: (parent.generation || 1) + 1,
             status: "Active",
             parent_id: parent.id,
-            biography: ""
+            biography: "",
+            birth_date: "",
+            birth_place: "",
+            partner_name: "",
+            head_of_family: false
         })
         setIsModalOpen(true)
     }, [])
@@ -165,10 +181,14 @@ export default function FamilyTreePage() {
                 if (error) throw error
             }
 
-            if (formData.biography) {
+            if (formData.biography || formData.birth_date || formData.birth_place || formData.partner_name) {
                 await supabase.from('family_biographies').upsert({
                     member_id: memberId,
-                    bio: formData.biography
+                    bio: formData.biography,
+                    birth_date: formData.birth_date || null,
+                    birth_place: formData.birth_place,
+                    partner_name: formData.partner_name,
+                    head_of_family: formData.head_of_family
                 }, { onConflict: 'member_id' })
             }
 
@@ -281,6 +301,24 @@ export default function FamilyTreePage() {
                                     <label className="font-bold text-muted-foreground uppercase text-[10px]">Generasi</label>
                                     <input type="number" value={formData.generation} onChange={e => setFormData({ ...formData, generation: parseInt(e.target.value) })} className="h-11 px-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none" />
                                 </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="grid gap-1.5">
+                                    <label className="font-bold text-muted-foreground uppercase text-[10px]">Tempat Lahir</label>
+                                    <input placeholder="Contoh: Jakarta" value={formData.birth_place} onChange={e => setFormData({ ...formData, birth_place: e.target.value })} className="h-11 px-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none" />
+                                </div>
+                                <div className="grid gap-1.5">
+                                    <label className="font-bold text-muted-foreground uppercase text-[10px]">Tanggal Lahir</label>
+                                    <input type="date" value={formData.birth_date} onChange={e => setFormData({ ...formData, birth_date: e.target.value })} className="h-11 px-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none" />
+                                </div>
+                            </div>
+                            <div className="grid gap-1.5">
+                                <label className="font-bold text-muted-foreground uppercase text-[10px]">Nama Pasangan (Suami/Istri)</label>
+                                <input placeholder="Tulis nama pasangan..." value={formData.partner_name} onChange={e => setFormData({ ...formData, partner_name: e.target.value })} className="h-11 px-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none" />
+                            </div>
+                            <div className="flex items-center gap-2 px-1">
+                                <input type="checkbox" id="head_of_family_tree" checked={formData.head_of_family} onChange={e => setFormData({ ...formData, head_of_family: e.target.checked })} className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary" />
+                                <label htmlFor="head_of_family_tree" className="text-xs font-bold text-muted-foreground uppercase">Tandai Sebagai Kepala Keluarga</label>
                             </div>
                             <div className="grid gap-1.5">
                                 <label className="font-bold text-muted-foreground uppercase text-[10px]">Status</label>
