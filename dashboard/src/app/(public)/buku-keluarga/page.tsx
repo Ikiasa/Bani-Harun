@@ -27,6 +27,7 @@ async function fetchPages(): Promise<BookPageData[]> {
                     memberId: String(item.id),
                     birthDate: bio.birth_date,
                     birthPlace: bio.birth_place,
+                    deathDate: bio.death_date,
                     partner: bio.partner_name,
                     headOfFamily: bio.head_of_family,
                     children: [],

@@ -3,7 +3,8 @@ export const dynamic = 'force-dynamic'
 import { StatsCard } from "@/components/dashboard/stats-card"
 import { RecentMembers } from "@/components/dashboard/recent-members"
 import { EventSummary } from "@/components/dashboard/event-summary"
-import { Users, Calendar, Wallet, TrendingUp } from "lucide-react"
+import { Users, Calendar, Wallet, TrendingUp, Heart } from "lucide-react"
+import { HaulCalendar } from "@/components/dashboard/haul-calendar"
 
 import { supabase } from "@/lib/supabase"
 
@@ -36,6 +37,11 @@ async function getDashboardData() {
     .order('date', { ascending: true })
     .limit(5);
 
+  const { data: membersWithBio } = await supabase
+    .from('family_members')
+    .select('*, family_biographies(*)')
+    .neq('status', 'Deleted'); // Fetch all to find Haul anniversaries
+
   return {
     stats: {
       totalMembers: totalMembers || 0,
@@ -45,12 +51,13 @@ async function getDashboardData() {
       monthlyContribution: 1250000, // Mocking avg contribution
     },
     members: members || [],
-    events: events || []
+    events: events || [],
+    membersWithBio: membersWithBio || []
   };
 }
 
 export default async function DashboardHome() {
-  const { stats, members, events } = await getDashboardData();
+  const { stats, members, events, membersWithBio } = await getDashboardData();
 
   return (
     <div className="grid gap-6 animate-in fade-in duration-500">
@@ -97,10 +104,13 @@ export default async function DashboardHome() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-7 transition-all hover:translate-y-[-2px] duration-300">
+        <div className="lg:col-span-4 transition-all hover:translate-y-[-2px] duration-300">
           <RecentMembers members={members} />
         </div>
-        <div className="lg:col-span-5 transition-all hover:translate-y-[-2px] duration-300">
+        <div className="lg:col-span-4 transition-all hover:translate-y-[-2px] duration-300">
+          <HaulCalendar members={membersWithBio} />
+        </div>
+        <div className="lg:col-span-4 transition-all hover:translate-y-[-2px] duration-300">
           <EventSummary events={events} />
         </div>
       </div>

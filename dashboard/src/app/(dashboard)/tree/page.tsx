@@ -41,7 +41,8 @@ export default function FamilyTreePage() {
         birth_date: "",
         birth_place: "",
         partner_name: "",
-        head_of_family: false
+        head_of_family: false,
+        death_date: ""
     })
 
 
@@ -115,7 +116,8 @@ export default function FamilyTreePage() {
                 birthDate: item.family_biographies?.[0]?.birth_date || "",
                 birthPlace: item.family_biographies?.[0]?.birth_place || "",
                 partnerName: item.family_biographies?.[0]?.partner_name || "",
-                headOfFamily: item.family_biographies?.[0]?.head_of_family || false
+                headOfFamily: item.family_biographies?.[0]?.head_of_family || false,
+                deathDate: item.family_biographies?.[0]?.death_date || ""
             }));
             setMembers(formatted)
         }
@@ -135,7 +137,8 @@ export default function FamilyTreePage() {
             birth_date: member.birthDate || "",
             birth_place: member.birthPlace || "",
             partner_name: member.partnerName || "",
-            head_of_family: member.headOfFamily || false
+            head_of_family: member.headOfFamily || false,
+            death_date: member.deathDate || ""
         })
         setIsModalOpen(true)
     }, [])
@@ -153,7 +156,8 @@ export default function FamilyTreePage() {
             birth_date: "",
             birth_place: "",
             partner_name: "",
-            head_of_family: false
+            head_of_family: false,
+            death_date: ""
         })
         setIsModalOpen(true)
     }, [])
@@ -181,14 +185,15 @@ export default function FamilyTreePage() {
                 if (error) throw error
             }
 
-            if (formData.biography || formData.birth_date || formData.birth_place || formData.partner_name) {
+            if (formData.biography || formData.birth_date || formData.birth_place || formData.partner_name || formData.death_date) {
                 await supabase.from('family_biographies').upsert({
                     member_id: memberId,
                     bio: formData.biography,
                     birth_date: formData.birth_date || null,
                     birth_place: formData.birth_place,
                     partner_name: formData.partner_name,
-                    head_of_family: formData.head_of_family
+                    head_of_family: formData.head_of_family,
+                    death_date: formData.death_date || null
                 }, { onConflict: 'member_id' })
             }
 
@@ -312,6 +317,13 @@ export default function FamilyTreePage() {
                                     <input type="date" value={formData.birth_date} onChange={e => setFormData({ ...formData, birth_date: e.target.value })} className="h-11 px-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none" />
                                 </div>
                             </div>
+
+                            {formData.status === "Deceased" && (
+                                <div className="grid gap-1.5 p-3 bg-destructive/5 border border-destructive/10 rounded-xl">
+                                    <label className="font-bold text-destructive uppercase text-[10px]">Tanggal Wafat (Untuk Haul)</label>
+                                    <input type="date" value={formData.death_date} onChange={e => setFormData({ ...formData, death_date: e.target.value })} className="h-11 px-4 bg-white border border-destructive/20 rounded-xl focus:ring-2 focus:ring-destructive/20 focus:outline-none text-destructive" />
+                                </div>
+                            )}
                             <div className="grid gap-1.5">
                                 <label className="font-bold text-muted-foreground uppercase text-[10px]">Nama Pasangan (Suami/Istri)</label>
                                 <input placeholder="Tulis nama pasangan..." value={formData.partner_name} onChange={e => setFormData({ ...formData, partner_name: e.target.value })} className="h-11 px-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none" />
