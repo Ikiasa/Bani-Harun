@@ -13,15 +13,17 @@ async function fetchPages(): Promise<BookPageData[]> {
 
         if (error) throw error;
 
-        return data.map((item: any) => {
+        // 1. Map data into a usable format
+        const membersMap = data.map((item: any) => {
             const bio = item.family_biographies && item.family_biographies[0];
             return {
                 id: String(item.id),
+                parentId: item.parent_id ? String(item.parent_id) : undefined,
                 name: item.name,
                 role: item.role,
                 generation: item.generation,
                 status: item.status,
-                avatar: item.avatar, // In direct Supabase, this might be a URL or key
+                avatar: item.avatar,
                 lastActive: item.last_active,
                 bioDetails: bio ? {
                     memberId: String(item.id),
@@ -38,6 +40,41 @@ async function fetchPages(): Promise<BookPageData[]> {
                 } : null
             };
         });
+
+        // 2. Build Hierarchy and Sort (DFS)
+        const sortedList: BookPageData[] = [];
+        const childrenMap: Record<string, any[]> = {};
+
+        membersMap.forEach(m => {
+            const pId = m.parentId || "root";
+            if (!childrenMap[pId]) childrenMap[pId] = [];
+            childrenMap[pId].push(m);
+        });
+
+        // Sort children by ID (assuming ID reflects birth order or insertion order)
+        Object.values(childrenMap).forEach(list => {
+            list.sort((a, b) => parseInt(a.id) - parseInt(b.id));
+        });
+
+        const traverse = (parentId: string) => {
+            const children = childrenMap[parentId] || [];
+            children.forEach(child => {
+                sortedList.push(child);
+                traverse(child.id);
+            });
+        };
+
+        traverse("root");
+
+        // If for some reason traverse didn't catch everyone (unlikely), add orphans
+        if (sortedList.length < membersMap.length) {
+            const addedIds = new Set(sortedList.map(s => s.id));
+            membersMap.forEach(m => {
+                if (!addedIds.has(m.id)) sortedList.push(m);
+            });
+        }
+
+        return sortedList;
     } catch (e) {
         console.error("Failed to fetch family book data", e);
         return [];
