@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Save, User as UserIcon, Lock, CheckCircle2 } from "lucide-react"
+import { supabase } from "@/lib/supabase"
 
 export default function SettingsPage() {
     const [name, setName] = useState("")
@@ -14,19 +15,15 @@ export default function SettingsPage() {
     const [message, setMessage] = useState({ type: "", text: "" })
 
     useEffect(() => {
-        // Load existing user info from localStorage (saved during login)
-        const user = localStorage.getItem("bh-user")
-        if (user) {
-            const parsed = JSON.parse(user)
-            setName(parsed.name || "")
-            setEmail(parsed.email || "")
+        const fetchUser = async () => {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                setName(user.user_metadata?.name || "")
+                setEmail(user.email || "")
+            }
         }
+        fetchUser()
     }, [])
-
-    const getAuthToken = () => {
-        const match = document.cookie.match(new RegExp('(^| )bh-auth-token=([^;]+)'))
-        return match ? match[2] : null
-    }
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -38,37 +35,21 @@ export default function SettingsPage() {
         }
 
         setLoading(true)
-        const token = getAuthToken()
 
         try {
-            const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/settings/profile`, {
-                method: "PUT",
-                headers: {
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
-                body: JSON.stringify({
-                    name,
-                    email,
-                    current_password: currentPassword,
-                    new_password: newPassword,
-                    confirm_password: confirmPassword
-                })
-            })
+            const updateProps: any = {
+                data: { name }
+            };
 
-            const data = await res.json()
-
-            if (!res.ok) {
-                let errorText = data.message || "Gagal menyimpan pengaturan."
-                if (data.errors) {
-                    const firstErrorKey = Object.keys(data.errors)[0]
-                    errorText = data.errors[firstErrorKey][0]
-                }
-                throw new Error(errorText)
+            if (newPassword) {
+                updateProps.password = newPassword;
             }
 
+            const { data, error } = await supabase.auth.updateUser(updateProps);
+
+            if (error) throw error;
+
             setMessage({ type: "success", text: "Pengaturan berhasil disimpan!" })
-            localStorage.setItem("bh-user", JSON.stringify(data.user))
 
             // Clear password fields
             setCurrentPassword("")

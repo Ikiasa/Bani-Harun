@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { API_BASE_URL } from "@/lib/api-config"
+import { supabase } from "@/lib/supabase"
 
 export default function SignupPage() {
     const router = useRouter()
@@ -26,34 +26,27 @@ export default function SignupPage() {
         setLoading(true)
 
         try {
-            const res = await fetch(`${API_BASE_URL}/api/register`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    name,
-                    email,
-                    password,
-                    password_confirmation: passwordConfirmation
-                })
+            const { data, error: signupError } = await supabase.auth.signUp({
+                email,
+                password,
+                options: {
+                    data: {
+                        name: name,
+                    },
+                },
             })
 
-            const data = await res.json()
+            if (signupError) throw signupError
 
-            if (!res.ok) {
-                // Formatting specific validation errors
-                let errorText = data.message || "Pendaftaran gagal"
-                if (data.errors) {
-                    const firstErrorKey = Object.keys(data.errors)[0]
-                    errorText = data.errors[firstErrorKey][0]
-                }
-                throw new Error(errorText)
+            if (data.session) {
+                // Save token securely in cookie for middleware compatibility
+                document.cookie = `bh-auth-token=${data.session.access_token}; path=/; max-age=604800; samesite=strict`
+                localStorage.setItem("bh-user", JSON.stringify(data.user))
+                router.push("/")
+            } else {
+                setError("Silakan periksa email Anda untuk konfirmasi pendaftaran.")
             }
 
-            // Save token securely in cookie
-            document.cookie = `bh-auth-token=${data.token}; path=/; max-age=604800; samesite=strict`
-            localStorage.setItem("bh-user", JSON.stringify(data.user))
-
-            router.push("/")
             router.refresh()
         } catch (err: any) {
             setError(err.message)

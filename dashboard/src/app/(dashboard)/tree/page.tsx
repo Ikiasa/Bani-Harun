@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, memo, useCallback } from "react"
 import { mockMembers, Member } from "@/lib/mock-data"
 import { cn } from "@/lib/utils"
 import { TreePine, Edit2, Trash2, Loader2, Printer, ChevronDown } from "lucide-react"
-import { API_BASE_URL, getAuthToken, getAdminUrl } from "@/lib/api-config"
+import { supabase } from "@/lib/supabase"
 
 // Memoize components to prevent re-renders when parent's state changes unrelatedly
 const MemoizedTreeNode = memo(TreeNode);
@@ -21,16 +21,14 @@ export default function FamilyTreePage() {
 
     useEffect(() => {
         setIsMounted(true)
-        const baseUrl = API_BASE_URL;
-        const token = getAuthToken()
 
-        fetch(`${baseUrl}/api/buku-keluarga`, {
-            headers: {
-                ...(token && { 'Authorization': `Bearer ${token}` })
-            }
-        })
-            .then(res => res.json())
-            .then(data => {
+        const fetchTree = async () => {
+            const { data, error } = await supabase
+                .from('family_members')
+                .select('*')
+                .order('name');
+
+            if (data) {
                 const formatted = data.map((item: any) => ({
                     id: String(item.id),
                     name: item.name,
@@ -52,13 +50,11 @@ export default function FamilyTreePage() {
 
                 setMembers(formatted)
                 setExpandedNodes(toExpand)
-                setLoading(false)
-            })
-            .catch(err => {
-                console.error("Failed to fetch tree data", err)
-                setMembers(mockMembers)
-                setLoading(false)
-            })
+            }
+            setLoading(false)
+        }
+
+        fetchTree()
     }, [])
 
     const toggleNode = useCallback((id: string) => {
@@ -79,22 +75,15 @@ export default function FamilyTreePage() {
 
         setIsDeleting(true)
         try {
-            const baseUrl = API_BASE_URL;
-            const token = getAuthToken()
+            const { error } = await supabase
+                .from('family_members')
+                .delete()
+                .eq('id', memberToDelete.id);
 
-            const res = await fetch(`${baseUrl}/api/members/${memberToDelete.id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(token && { 'Authorization': `Bearer ${token}` })
-                }
-            });
-
-            if (res.ok) {
+            if (!error) {
                 setMembers(prev => prev.filter(m => m.id !== memberToDelete.id));
                 setMemberToDelete(null)
             } else {
-                const error = await res.json();
                 alert(error.message || "Gagal menghapus anggota.");
             }
         } catch (err) {
@@ -335,15 +324,13 @@ function TreeNode({ member, onDelete, hasChildren, isExpanded, onToggle }: {
                 className="absolute -top-3 -right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300 z-20 scale-75 group-hover:scale-100"
                 onClick={(e) => e.stopPropagation()}
             >
-                <a
-                    href={getAdminUrl(`/admin/family-members/${member.id}/edit`)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-1.5 bg-white shadow-xl border border-primary/20 hover:bg-primary/10 text-primary rounded-lg transition-colors flex items-center justify-center"
-                    title="Edit di CMS"
+                <button
+                    disabled
+                    className="p-1.5 bg-muted shadow-xl border border-muted-foreground/20 text-muted-foreground rounded-lg cursor-not-allowed flex items-center justify-center"
+                    title="Admin Only"
                 >
                     <Edit2 className="w-3.5 h-3.5" />
-                </a>
+                </button>
                 <button
                     type="button"
                     onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(member.id, member.name); }}

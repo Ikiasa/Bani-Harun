@@ -12,20 +12,45 @@ import { cn } from "@/lib/utils"
 import { cookies } from 'next/headers'
 import { API_BASE_URL } from "@/lib/api-config"
 
+import { supabase } from "@/lib/supabase"
+
 async function getFinancialData() {
-    const baseUrl = API_BASE_URL;
-    const cookieStore = await cookies()
-    const token = cookieStore.get('bh-auth-token')?.value
+    const { data: transactions } = await supabase
+        .from('financial_transactions')
+        .select('*')
+        .order('date', { ascending: false });
 
-    const res = await fetch(`${baseUrl}/api/dashboard/financials`, {
-        cache: 'no-store',
-        headers: {
-            ...(token && { 'Authorization': `Bearer ${token}` })
-        }
-    });
+    const totalFunds = transactions?.reduce((sum, t) => sum + Number(t.amount), 0) || 0;
 
-    if (!res.ok) throw new Error("Failed to fetch financial data");
-    return res.json();
+    // Simple logic for monthly stats
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    const monthlyStats = transactions?.filter(t => {
+        const d = new Date(t.date);
+        return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+    }) || [];
+
+    const monthlyContribution = monthlyStats
+        .filter(t => t.type === 'Contribution' || Number(t.amount) > 0)
+        .reduce((sum, t) => sum + Number(t.amount), 0);
+
+    const recentExpenses = Math.abs(monthlyStats
+        .filter(t => t.type === 'Expense' || Number(t.amount) < 0)
+        .reduce((sum, t) => sum + Number(t.amount), 0));
+
+    return {
+        summary: {
+            original: {
+                totalFunds,
+                growth: 5.2,
+                monthlyContribution,
+                recentExpenses
+            }
+        },
+        transactions: transactions?.slice(0, 10) || []
+    };
 }
 
 export default async function FinancialsPage() {

@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { API_BASE_URL } from "@/lib/api-config"
+import { supabase } from "@/lib/supabase"
 
 export default function LoginPage() {
     const router = useRouter()
@@ -18,24 +18,21 @@ export default function LoginPage() {
         setLoading(true)
 
         try {
-            const res = await fetch(`${API_BASE_URL}/api/login`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ email, password })
+            const { data, error: loginError } = await supabase.auth.signInWithPassword({
+                email,
+                password,
             })
 
-            const data = await res.json()
+            if (loginError) throw loginError
 
-            if (!res.ok) {
-                throw new Error(data.message || "Login gagal")
+            // Save token securely in cookie for middleware compatibility
+            if (data.session) {
+                document.cookie = `bh-auth-token=${data.session.access_token}; path=/; max-age=604800; samesite=strict`
+                localStorage.setItem("bh-user", JSON.stringify(data.user))
+
+                router.push("/")
+                router.refresh()
             }
-
-            // Save token securely in cookie
-            document.cookie = `bh-auth-token=${data.token}; path=/; max-age=604800; samesite=strict`
-            localStorage.setItem("bh-user", JSON.stringify(data.user))
-
-            router.push("/")
-            router.refresh()
         } catch (err: any) {
             setError(err.message)
         } finally {

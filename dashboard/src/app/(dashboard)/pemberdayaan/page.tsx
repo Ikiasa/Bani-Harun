@@ -1,22 +1,19 @@
 import { EmpowermentClient } from "@/components/pemberdayaan/empowerment-client"
 
-import { cookies } from 'next/headers'
-import { API_BASE_URL } from "@/lib/api-config"
+import { supabase } from "@/lib/supabase"
 
 async function getEmpowermentData() {
-    const baseUrl = API_BASE_URL;
-    const cookieStore = await cookies()
-    const token = cookieStore.get('bh-auth-token')?.value
+    const [oppsRes, progsRes, ideasRes] = await Promise.all([
+        supabase.from('opportunities').select('*'),
+        supabase.from('programs').select('*'),
+        supabase.from('ideas').select('*')
+    ]);
 
-    const res = await fetch(`${baseUrl}/api/dashboard/empowerment`, {
-        cache: 'no-store',
-        headers: {
-            ...(token && { 'Authorization': `Bearer ${token}` })
-        }
-    });
-
-    if (!res.ok) throw new Error("Failed to fetch empowerment data");
-    return res.json();
+    return {
+        opportunities: oppsRes.data || [],
+        programs: progsRes.data || [],
+        ideas: ideasRes.data || []
+    };
 }
 
 export default async function PemberdayaanPage() {

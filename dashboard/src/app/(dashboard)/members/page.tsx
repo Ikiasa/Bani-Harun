@@ -14,32 +14,29 @@ import {
     ShieldCheck,
     Loader2
 } from "lucide-react"
-import { API_BASE_URL, getAuthToken, getAdminUrl } from "@/lib/api-config"
+import { supabase } from "@/lib/supabase"
 
 export default function MemberManagement() {
     const [searchTerm, setSearchTerm] = useState("")
     const [members, setMembers] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
 
-
     useEffect(() => {
-        const baseUrl = API_BASE_URL;
-        const token = getAuthToken()
+        const fetchMembers = async () => {
+            const { data, error } = await supabase
+                .from('family_members')
+                .select('*')
+                .order('name')
 
-        fetch(`${baseUrl}/api/buku-keluarga`, {
-            headers: {
-                ...(token && { 'Authorization': `Bearer ${token}` })
+            if (error) {
+                console.error(error)
+            } else {
+                setMembers(data || [])
             }
-        })
-            .then(res => res.json())
-            .then(data => {
-                setMembers(data)
-                setLoading(false)
-            })
-            .catch(err => {
-                console.error(err)
-                setLoading(false)
-            })
+            setLoading(false)
+        }
+
+        fetchMembers()
     }, [])
 
     const filteredMembers = members.filter(m =>
@@ -130,18 +127,16 @@ export default function MemberManagement() {
                                         </span>
                                     </td>
                                     <td className="px-6 py-4 text-sm text-muted-foreground font-medium">
-                                        {member.lastActive}
+                                        {member.last_active || "Belum aktif"}
                                     </td>
                                     <td className="px-6 py-4 text-right">
-                                        <a
-                                            href={getAdminUrl(`/admin/family-members/${member.id}/edit`)}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="inline-flex items-center gap-2 p-2 px-3 text-xs font-bold text-primary hover:bg-primary/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
+                                        <button
+                                            disabled
+                                            className="inline-flex items-center gap-2 p-2 px-3 text-xs font-bold text-muted-foreground bg-muted rounded-lg cursor-not-allowed opacity-0 group-hover:opacity-100 transition-all font-bold"
                                         >
                                             <Edit2 className="w-3.5 h-3.5" />
-                                            Edit
-                                        </a>
+                                            Admin Only
+                                        </button>
                                     </td>
                                 </tr>
                             ))}

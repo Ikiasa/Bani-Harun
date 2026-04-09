@@ -18,7 +18,7 @@ import {
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
-import { API_BASE_URL, getAuthToken } from "@/lib/api-config"
+import { supabase } from "@/lib/supabase"
 
 const groups = [
     {
@@ -32,7 +32,7 @@ const groups = [
     {
         name: "Koleksi",
         items: [
-            { name: "Buku Keluarga", href: "/admin/buku-keluarga", icon: BookOpen },
+            { name: "Buku Keluarga (Publik)", href: "/buku-keluarga", icon: BookOpen },
             { name: "Acara Keluarga", href: "/events", icon: CalendarDays },
         ]
     },
@@ -42,12 +42,6 @@ const groups = [
             { name: "Keuangan", href: "/financials", icon: Wallet },
             { name: "Pemberdayaan", href: "/pemberdayaan", icon: Rocket },
             { name: "Pengaturan", href: "/settings", icon: Settings },
-        ]
-    },
-    {
-        name: "Umum",
-        items: [
-            { name: "Situs Publik", href: "/buku-keluarga", icon: ExternalLink },
         ]
     }
 ]
@@ -63,30 +57,28 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
     const [user, setUser] = useState<{ name: string; email: string } | null>(null)
 
     useEffect(() => {
-        const storedUser = localStorage.getItem("bh-user")
-        if (storedUser) {
-            try {
-                setUser(JSON.parse(storedUser))
-            } catch (e) {
-                console.error("Failed to parse user", e)
+        const fetchUser = async () => {
+            const { data: { user: supabaseUser } } = await supabase.auth.getUser();
+            if (supabaseUser) {
+                setUser({
+                    name: supabaseUser.user_metadata?.name || "Pengguna Keluarga",
+                    email: supabaseUser.email || ""
+                });
+            } else {
+                const storedUser = localStorage.getItem("bh-user")
+                if (storedUser) setUser(JSON.parse(storedUser))
             }
         }
+        fetchUser()
     }, [])
 
     const handleLogout = async () => {
+        await supabase.auth.signOut()
+
         // Clear cookie
         document.cookie = "bh-auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT"
         // Clear localStorage
         localStorage.removeItem("bh-user")
-
-        // Call backend logout (optional, fire and forget)
-        const token = getAuthToken()
-        if (token) {
-            fetch(`${API_BASE_URL}/api/logout`, {
-                method: "POST",
-                headers: { "Authorization": `Bearer ${token}` }
-            }).catch(() => { })
-        }
 
         router.push("/login")
         router.refresh()

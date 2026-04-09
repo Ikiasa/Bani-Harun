@@ -1,36 +1,40 @@
 import React from "react"
 import { DigitalBook } from "@/components/buku-keluarga/DigitalBook"
 import { BookPageData } from "@/lib/family-book-data"
-import { API_BASE_URL } from "@/lib/api-config"
+import { supabase } from "@/lib/supabase"
 
 async function fetchPages(): Promise<BookPageData[]> {
     try {
-        const baseUrl = API_BASE_URL;
-        const res = await fetch(`${baseUrl}/api/buku-keluarga`, { cache: "no-store", next: { revalidate: 0 } });
-        if (!res.ok) return [];
-        const data = await res.json();
+        const { data, error } = await supabase
+            .from('family_members')
+            .select('*, family_biographies(*)');
 
-        return data.map((item: any) => ({
-            id: String(item.id),
-            name: item.name,
-            role: item.role,
-            generation: item.generation,
-            status: item.status,
-            avatar: item.photo ? `${baseUrl}/storage/${item.photo}` : undefined,
-            lastActive: item.last_active,
-            bioDetails: item.biography ? {
-                memberId: String(item.id),
-                birthDate: item.biography.birth_date,
-                birthPlace: item.biography.birth_place,
-                partner: item.biography.partner_name,
-                headOfFamily: item.biography.head_of_family,
-                children: [],
-                bio: item.biography.bio,
-                achievements: item.biography.achievements?.map((a: any) => a.title) || [],
-                gallery: item.biography.gallery?.map((g: string) => `${baseUrl}/storage/${g}`) || [],
-                timeline: item.biography.timeline || []
-            } : null
-        }));
+        if (error) throw error;
+
+        return data.map((item: any) => {
+            const bio = item.family_biographies && item.family_biographies[0];
+            return {
+                id: String(item.id),
+                name: item.name,
+                role: item.role,
+                generation: item.generation,
+                status: item.status,
+                avatar: item.avatar, // In direct Supabase, this might be a URL or key
+                lastActive: item.last_active,
+                bioDetails: bio ? {
+                    memberId: String(item.id),
+                    birthDate: bio.birth_date,
+                    birthPlace: bio.birth_place,
+                    partner: bio.partner_name,
+                    headOfFamily: bio.head_of_family,
+                    children: [],
+                    bio: bio.bio,
+                    achievements: bio.achievements?.map((a: any) => a.title || a) || [],
+                    gallery: bio.gallery || [],
+                    timeline: bio.timeline || []
+                } : null
+            };
+        });
     } catch (e) {
         console.error("Failed to fetch family book data", e);
         return [];

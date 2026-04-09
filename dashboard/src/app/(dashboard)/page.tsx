@@ -3,33 +3,47 @@ import { RecentMembers } from "@/components/dashboard/recent-members"
 import { EventSummary } from "@/components/dashboard/event-summary"
 import { Users, Calendar, Wallet, TrendingUp } from "lucide-react"
 
-import { cookies } from 'next/headers'
-import { API_BASE_URL } from "@/lib/api-config"
+import { supabase } from "@/lib/supabase"
 
 async function getDashboardData() {
-  const baseUrl = API_BASE_URL;
-  const cookieStore = await cookies()
-  const token = cookieStore.get('bh-auth-token')?.value
+  const { count: totalMembers } = await supabase
+    .from('family_members')
+    .select('*', { count: 'exact', head: true });
 
-  const headers = {
-    'Cache-Control': 'no-store',
-    ...(token && { 'Authorization': `Bearer ${token}` })
-  }
+  const { count: upcomingEvents } = await supabase
+    .from('family_events')
+    .select('*', { count: 'exact', head: true })
+    .gte('date', new Date().toISOString().split('T')[0]);
 
-  const [statsRes, membersRes, eventsRes] = await Promise.all([
-    fetch(`${baseUrl}/api/dashboard/stats`, { headers }),
-    fetch(`${baseUrl}/api/dashboard/members`, { headers }),
-    fetch(`${baseUrl}/api/dashboard/events`, { headers })
-  ]);
+  const { data: transactions } = await supabase
+    .from('financial_transactions')
+    .select('amount');
 
-  if (!statsRes.ok || !membersRes.ok || !eventsRes.ok) {
-    throw new Error("Failed to fetch dashboard data");
-  }
+  const totalFunds = transactions?.reduce((sum, t) => sum + Number(t.amount), 0) || 0;
+
+  const { data: members } = await supabase
+    .from('family_members')
+    .select('*')
+    .order('created_at', { ascending: false })
+    .limit(5);
+
+  const { data: events } = await supabase
+    .from('family_events')
+    .select('*')
+    .gte('date', new Date().toISOString().split('T')[0])
+    .order('date', { ascending: true })
+    .limit(5);
 
   return {
-    stats: await statsRes.json(),
-    members: await membersRes.json(),
-    events: await eventsRes.json()
+    stats: {
+      totalMembers: totalMembers || 0,
+      upcomingEvents: upcomingEvents || 0,
+      totalFunds,
+      growth: 2.5, // Mocking growth trend
+      monthlyContribution: 1250000, // Mocking avg contribution
+    },
+    members: members || [],
+    events: events || []
   };
 }
 
