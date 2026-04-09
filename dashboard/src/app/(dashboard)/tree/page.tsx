@@ -318,7 +318,7 @@ export default function FamilyTreePage() {
                                 </div>
                             </div>
 
-                            {formData.status === "Deceased" && (
+                            {(formData.status === "Deceased" || formData.status === "Wafat") && (
                                 <div className="grid gap-1.5 p-3 bg-destructive/5 border border-destructive/10 rounded-xl">
                                     <label className="font-bold text-destructive uppercase text-[10px]">Tanggal Wafat (Untuk Haul)</label>
                                     <input type="date" value={formData.death_date} onChange={e => setFormData({ ...formData, death_date: e.target.value })} className="h-11 px-4 bg-white border border-destructive/20 rounded-xl focus:ring-2 focus:ring-destructive/20 focus:outline-none text-destructive" />
