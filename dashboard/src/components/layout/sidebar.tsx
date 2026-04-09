@@ -18,6 +18,7 @@ import {
 import { cn } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
+import { API_BASE_URL, getAuthToken } from "@/lib/api-config"
 
 const groups = [
     {
@@ -79,9 +80,9 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         localStorage.removeItem("bh-user")
 
         // Call backend logout (optional, fire and forget)
-        const token = document.cookie.match(new RegExp('(^| )bh-auth-token=([^;]+)'))?.[2]
+        const token = getAuthToken()
         if (token) {
-            fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000'}/api/logout`, {
+            fetch(`${API_BASE_URL}/api/logout`, {
                 method: "POST",
                 headers: { "Authorization": `Bearer ${token}` }
             }).catch(() => { })

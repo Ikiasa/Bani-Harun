@@ -1,9 +1,10 @@
 import { EmpowermentClient } from "@/components/pemberdayaan/empowerment-client"
 
 import { cookies } from 'next/headers'
+import { API_BASE_URL } from "@/lib/api-config"
 
 async function getEmpowermentData() {
-    const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+    const baseUrl = API_BASE_URL;
     const cookieStore = await cookies()
     const token = cookieStore.get('bh-auth-token')?.value
 

@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, memo, useCallback } from "react"
 import { mockMembers, Member } from "@/lib/mock-data"
 import { cn } from "@/lib/utils"
 import { TreePine, Edit2, Trash2, Loader2, Printer, ChevronDown } from "lucide-react"
+import { API_BASE_URL, getAuthToken, getAdminUrl } from "@/lib/api-config"
 
 // Memoize components to prevent re-renders when parent's state changes unrelatedly
 const MemoizedTreeNode = memo(TreeNode);
@@ -17,14 +18,10 @@ export default function FamilyTreePage() {
     const [memberToDelete, setMemberToDelete] = useState<{ id: string, name: string } | null>(null)
     const [isDeleting, setIsDeleting] = useState(false)
 
-    const getAuthToken = () => {
-        const match = document.cookie.match(new RegExp('(^| )bh-auth-token=([^;]+)'))
-        return match ? match[2] : null
-    }
 
     useEffect(() => {
         setIsMounted(true)
-        const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+        const baseUrl = API_BASE_URL;
         const token = getAuthToken()
 
         fetch(`${baseUrl}/api/buku-keluarga`, {
@@ -82,7 +79,7 @@ export default function FamilyTreePage() {
 
         setIsDeleting(true)
         try {
-            const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+            const baseUrl = API_BASE_URL;
             const token = getAuthToken()
 
             const res = await fetch(`${baseUrl}/api/members/${memberToDelete.id}`, {
@@ -293,7 +290,6 @@ function TreeNode({ member, onDelete, hasChildren, isExpanded, onToggle }: {
     }, [member.name]);
 
     const isDead = member.status === "Inactive"
-    const cmsUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
     return (
         <div
@@ -340,7 +336,7 @@ function TreeNode({ member, onDelete, hasChildren, isExpanded, onToggle }: {
                 onClick={(e) => e.stopPropagation()}
             >
                 <a
-                    href={`${cmsUrl}/admin/family-members/${member.id}/edit`}
+                    href={getAdminUrl(`/admin/family-members/${member.id}/edit`)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="p-1.5 bg-white shadow-xl border border-primary/20 hover:bg-primary/10 text-primary rounded-lg transition-colors flex items-center justify-center"

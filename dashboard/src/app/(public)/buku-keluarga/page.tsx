@@ -1,10 +1,11 @@
 import React from "react"
 import { DigitalBook } from "@/components/buku-keluarga/DigitalBook"
 import { BookPageData } from "@/lib/family-book-data"
+import { API_BASE_URL } from "@/lib/api-config"
 
 async function fetchPages(): Promise<BookPageData[]> {
     try {
-        const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+        const baseUrl = API_BASE_URL;
         const res = await fetch(`${baseUrl}/api/buku-keluarga`, { cache: "no-store", next: { revalidate: 0 } });
         if (!res.ok) return [];
         const data = await res.json();

@@ -14,19 +14,16 @@ import {
     ShieldCheck,
     Loader2
 } from "lucide-react"
+import { API_BASE_URL, getAuthToken, getAdminUrl } from "@/lib/api-config"
 
 export default function MemberManagement() {
     const [searchTerm, setSearchTerm] = useState("")
     const [members, setMembers] = useState<any[]>([])
     const [loading, setLoading] = useState(true)
 
-    const getAuthToken = () => {
-        const match = document.cookie.match(new RegExp('(^| )bh-auth-token=([^;]+)'))
-        return match ? match[2] : null
-    }
 
     useEffect(() => {
-        const baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
+        const baseUrl = API_BASE_URL;
         const token = getAuthToken()
 
         fetch(`${baseUrl}/api/buku-keluarga`, {
@@ -137,7 +134,7 @@ export default function MemberManagement() {
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <a
-                                            href={`http://127.0.0.1:8000/admin/family-members/${member.id}/edit`}
+                                            href={getAdminUrl(`/admin/family-members/${member.id}/edit`)}
                                             target="_blank"
                                             rel="noopener noreferrer"
                                             className="inline-flex items-center gap-2 p-2 px-3 text-xs font-bold text-primary hover:bg-primary/10 rounded-lg transition-all opacity-0 group-hover:opacity-100"
