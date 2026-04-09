@@ -2,10 +2,8 @@
 
 import { useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
-import Link from "next/link"
 import {
     Search,
-    Plus,
     Filter,
     Edit2,
     UserPlus,

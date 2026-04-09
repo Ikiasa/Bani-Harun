@@ -1,3 +1,6 @@
+"use client"
+
+import { useEffect, useState } from "react"
 import {
     Wallet,
     TrendingUp,
@@ -6,12 +9,15 @@ import {
     CreditCard,
     DollarSign,
     Download,
-    Filter
+    Filter,
+    Plus,
+    X,
+    Loader2,
+    Trash2,
+    Edit2,
+    Check
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { cookies } from 'next/headers'
-import { API_BASE_URL } from "@/lib/api-config"
-
 import { supabase } from "@/lib/supabase"
 
 async function getFinancialData() {

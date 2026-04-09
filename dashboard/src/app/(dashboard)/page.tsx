@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { StatsCard } from "@/components/dashboard/stats-card"
 import { RecentMembers } from "@/components/dashboard/recent-members"
 import { EventSummary } from "@/components/dashboard/event-summary"

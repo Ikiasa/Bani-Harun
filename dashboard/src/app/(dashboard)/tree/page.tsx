@@ -1,10 +1,18 @@
 "use client"
 
 import { useState, useEffect, useMemo, memo, useCallback } from "react"
-import { mockMembers, Member } from "@/lib/mock-data"
 import { cn } from "@/lib/utils"
-import { TreePine, Edit2, Trash2, Loader2, Printer, ChevronDown } from "lucide-react"
+import { TreePine, Edit2, Trash2, Loader2, Printer, ChevronDown, UserPlus, X, Check } from "lucide-react"
 import { supabase } from "@/lib/supabase"
+
+interface Member {
+    id: string
+    name: string
+    role: string
+    generation: number
+    status: string
+    parentId?: string
+}
 
 // Memoize components to prevent re-renders when parent's state changes unrelatedly
 const MemoizedTreeNode = memo(TreeNode);
