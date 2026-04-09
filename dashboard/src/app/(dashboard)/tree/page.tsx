@@ -34,7 +34,7 @@ export default function FamilyTreePage() {
             const { data, error } = await supabase
                 .from('family_members')
                 .select('*')
-                .order('name');
+                .order('id', { ascending: true });
 
             if (data) {
                 const formatted = data.map((item: any) => ({
