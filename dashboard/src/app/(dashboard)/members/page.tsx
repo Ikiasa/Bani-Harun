@@ -30,15 +30,18 @@ export default function MemberManagement() {
         role: "Member",
         generation: 1,
         status: "Active",
-        parent_id: null as string | null
+        parent_id: null as string | null,
+        avatar: "",
+        biography: ""
     })
+    const [uploadingImage, setUploadingImage] = useState(false)
 
     const fetchMembers = async () => {
         setLoading(true)
         const { data, error } = await supabase
             .from('family_members')
-            .select('*')
-            .order('name')
+            .select('*, family_biographies(bio)')
+            .order('id', { ascending: true })
 
         if (data) setMembers(data)
         setLoading(false)
@@ -50,7 +53,7 @@ export default function MemberManagement() {
 
     const handleOpenAdd = () => {
         setModalMode('add')
-        setFormData({ name: "", role: "Member", generation: 1, status: "Active", parent_id: null })
+        setFormData({ name: "", role: "Member", generation: 1, status: "Active", parent_id: null, avatar: "", biography: "" })
         setIsModalOpen(true)
     }
 
@@ -62,26 +65,75 @@ export default function MemberManagement() {
             role: member.role,
             generation: member.generation,
             status: member.status,
-            parent_id: member.parent_id
+            parent_id: member.parent_id,
+            avatar: member.avatar || "",
+            biography: member.family_biographies?.[0]?.bio || ""
         })
         setIsModalOpen(true)
+    }
+
+    const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+        setUploadingImage(true)
+        try {
+            const fileExt = file.name.split('.').pop()
+            const fileName = `${Math.random()}.${fileExt}`
+            const { data, error } = await supabase.storage.from('avatars').upload(fileName, file)
+            if (error) throw error
+            const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(data.path)
+            setFormData({ ...formData, avatar: publicUrl })
+        } catch (err: any) {
+            alert('Upload gagal: ' + err.message)
+        } finally {
+            setUploadingImage(false)
+        }
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
         setIsSubmitting(true)
 
-        if (modalMode === 'add') {
-            const { error } = await supabase.from('family_members').insert([formData])
-            if (error) alert(error.message)
-        } else {
-            const { error } = await supabase.from('family_members').update(formData).eq('id', targetMember.id)
-            if (error) alert(error.message)
-        }
+        try {
+            const memberPayload = {
+                name: formData.name,
+                role: formData.role,
+                generation: formData.generation,
+                status: formData.status,
+                parent_id: formData.parent_id,
+                avatar: formData.avatar
+            }
 
-        setIsSubmitting(false)
-        setIsModalOpen(false)
-        fetchMembers()
+            let currentMemberId = targetMember?.id
+
+            if (modalMode === 'add') {
+                const { data, error } = await supabase.from('family_members').insert([memberPayload]).select('id').single()
+                if (error) throw error
+                currentMemberId = data.id
+            } else {
+                const { error } = await supabase.from('family_members').update(memberPayload).eq('id', targetMember.id)
+                if (error) throw error
+            }
+
+            if (formData.biography) {
+                // Upsert biography
+                const { error: bioError } = await supabase.from('family_biographies').upsert({
+                    member_id: currentMemberId,
+                    bio: formData.biography
+                }, { onConflict: 'member_id' })
+                if (bioError) throw bioError
+            } else {
+                // Remove bio if empty
+                await supabase.from('family_biographies').delete().eq('member_id', currentMemberId)
+            }
+
+            setIsModalOpen(false)
+            fetchMembers()
+        } catch (error: any) {
+            alert(error.message)
+        } finally {
+            setIsSubmitting(false)
+        }
     }
 
     const handleDelete = async () => {
@@ -197,19 +249,34 @@ export default function MemberManagement() {
                                     <label className="font-bold text-muted-foreground uppercase text-[10px]">Peran</label>
                                     <input value={formData.role} onChange={e => setFormData({ ...formData, role: e.target.value })} className="h-11 px-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none" />
                                 </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
                                 <div className="grid gap-1.5">
                                     <label className="font-bold text-muted-foreground uppercase text-[10px]">Generasi</label>
                                     <input type="number" value={formData.generation} onChange={e => setFormData({ ...formData, generation: parseInt(e.target.value) })} className="h-11 px-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none" />
                                 </div>
+                                <div className="grid gap-1.5">
+                                    <label className="font-bold text-muted-foreground uppercase text-[10px]">Status</label>
+                                    <select value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value })} className="h-11 px-4 bg-muted border rounded-xl font-bold">
+                                        <option value="Active">Aktif (Hidup)</option>
+                                        <option value="Inactive">Tidak Aktif (Wafat)</option>
+                                    </select>
+                                </div>
                             </div>
                             <div className="grid gap-1.5">
-                                <label className="font-bold text-muted-foreground uppercase text-[10px]">Status</label>
-                                <select value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value })} className="h-11 px-4 bg-muted border rounded-xl font-bold">
-                                    <option value="Active">Aktif (Hidup)</option>
-                                    <option value="Inactive">Tidak Aktif (Wafat)</option>
-                                </select>
+                                <label className="font-bold text-muted-foreground uppercase text-[10px]">Foto Profil (Upload)</label>
+                                <div className="flex items-center gap-3">
+                                    {formData.avatar && <img src={formData.avatar} alt="Preview" className="w-10 h-10 rounded-full object-cover border" />}
+                                    <input type="file" accept="image/*" onChange={handlePhotoUpload} disabled={uploadingImage} className="flex-1 text-xs file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 transition-colors" />
+                                    {uploadingImage && <Loader2 className="w-4 h-4 animate-spin text-primary" />}
+                                </div>
+                                <input placeholder="Atau Tempel URL Foto..." value={formData.avatar} onChange={e => setFormData({ ...formData, avatar: e.target.value })} className="h-9 px-4 text-xs bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 mt-1" />
                             </div>
-                            <button type="submit" disabled={isSubmitting} className="h-12 bg-primary text-white rounded-xl font-bold flex items-center justify-center gap-2 mt-4 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all">
+                            <div className="grid gap-1.5">
+                                <label className="font-bold text-muted-foreground uppercase text-[10px]">Biografi Buku Keluarga</label>
+                                <textarea placeholder="Tuliskan kisah singkat, pencapaian, atau biografi..." rows={3} value={formData.biography} onChange={e => setFormData({ ...formData, biography: e.target.value })} className="p-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none resize-none" />
+                            </div>
+                            <button type="submit" disabled={isSubmitting || uploadingImage} className="h-12 bg-primary text-white rounded-xl font-bold flex items-center justify-center gap-2 mt-4 shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-[0.98] transition-all">
                                 {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Check className="w-5 h-5" /> Simpan Data</>}
                             </button>
                         </form>

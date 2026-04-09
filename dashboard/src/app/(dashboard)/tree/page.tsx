@@ -26,6 +26,20 @@ export default function FamilyTreePage() {
     const [memberToDelete, setMemberToDelete] = useState<{ id: string, name: string } | null>(null)
     const [isDeleting, setIsDeleting] = useState(false)
 
+    // Edit/Add states
+    const [isModalOpen, setIsModalOpen] = useState(false)
+    const [modalMode, setModalMode] = useState<'add' | 'edit'>('add')
+    const [isSubmitting, setIsSubmitting] = useState(false)
+    const [targetMember, setTargetMember] = useState<any>(null)
+    const [formData, setFormData] = useState({
+        name: "",
+        role: "Member",
+        generation: 1,
+        status: "Active",
+        parent_id: null as string | null,
+        biography: ""
+    })
+
 
     useEffect(() => {
         setIsMounted(true)
@@ -33,7 +47,7 @@ export default function FamilyTreePage() {
         const fetchTree = async () => {
             const { data, error } = await supabase
                 .from('family_members')
-                .select('*')
+                .select('*, family_biographies(bio)')
                 .order('id', { ascending: true });
 
             if (data) {
@@ -44,7 +58,8 @@ export default function FamilyTreePage() {
                     generation: item.generation,
                     status: item.status,
                     lastActive: item.last_active,
-                    parentId: item.parent_id ? String(item.parent_id) : undefined
+                    parentId: item.parent_id ? String(item.parent_id) : undefined,
+                    biography: item.family_biographies?.[0]?.bio || ""
                 }));
 
                 // Auto-expand first 2 levels
@@ -78,16 +93,99 @@ export default function FamilyTreePage() {
         setMemberToDelete({ id, name })
     }, []);
 
+    const fetchTreeData = async () => {
+        setLoading(true)
+        const { data, error } = await supabase
+            .from('family_members')
+            .select('*, family_biographies(bio)')
+            .order('id', { ascending: true });
+        if (data) {
+            const formatted = data.map((item: any) => ({
+                id: String(item.id),
+                name: item.name,
+                role: item.role,
+                generation: item.generation,
+                status: item.status,
+                parentId: item.parent_id ? String(item.parent_id) : undefined,
+                biography: item.family_biographies?.[0]?.bio || ""
+            }));
+            setMembers(formatted)
+        }
+        setLoading(false)
+    }
+
+    const handleOpenEdit = useCallback((member: any) => {
+        setModalMode('edit')
+        setTargetMember(member)
+        setFormData({
+            name: member.name,
+            role: member.role,
+            generation: member.generation,
+            status: member.status,
+            parent_id: member.parentId || null,
+            biography: member.biography || ""
+        })
+        setIsModalOpen(true)
+    }, [])
+
+    const handleOpenAddChild = useCallback((parent: any) => {
+        setModalMode('add')
+        setTargetMember(parent)
+        setFormData({
+            name: "",
+            role: "Member",
+            generation: (parent.generation || 1) + 1,
+            status: "Active",
+            parent_id: parent.id,
+            biography: ""
+        })
+        setIsModalOpen(true)
+    }, [])
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        setIsSubmitting(true)
+        try {
+            const payload = {
+                name: formData.name,
+                role: formData.role,
+                generation: formData.generation,
+                status: formData.status,
+                parent_id: formData.parent_id
+            }
+
+            let memberId = targetMember?.id
+
+            if (modalMode === 'add') {
+                const { data, error } = await supabase.from('family_members').insert([payload]).select('id').single()
+                if (error) throw error
+                memberId = data.id
+            } else {
+                const { error } = await supabase.from('family_members').update(payload).eq('id', targetMember.id)
+                if (error) throw error
+            }
+
+            if (formData.biography) {
+                await supabase.from('family_biographies').upsert({
+                    member_id: memberId,
+                    bio: formData.biography
+                }, { onConflict: 'member_id' })
+            }
+
+            setIsModalOpen(false)
+            fetchTreeData()
+        } catch (err: any) {
+            alert(err.message)
+        } finally {
+            setIsSubmitting(false)
+        }
+    }
+
     const confirmDelete = async () => {
         if (!memberToDelete || isDeleting) return
-
         setIsDeleting(true)
         try {
-            const { error } = await supabase
-                .from('family_members')
-                .delete()
-                .eq('id', memberToDelete.id);
-
+            const { error } = await supabase.from('family_members').delete().eq('id', memberToDelete.id);
             if (!error) {
                 setMembers(prev => prev.filter(m => m.id !== memberToDelete.id));
                 setMemberToDelete(null)
@@ -154,10 +252,54 @@ export default function FamilyTreePage() {
                             expandedNodes={expandedNodes}
                             onToggle={toggleNode}
                             onDelete={deleteMember}
+                            onEdit={handleOpenEdit}
+                            onAddChild={handleOpenAddChild}
                         />
                     ))}
                 </div>
             </div>
+
+            {/* Edit/Add Modal */}
+            {isModalOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-md animate-in fade-in">
+                    <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95 grid gap-6">
+                        <div className="flex justify-between items-center">
+                            <h2 className="text-xl font-bold">{modalMode === 'add' ? `Tambah Anak ${targetMember?.name}` : 'Edit Anggota'}</h2>
+                            <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-muted rounded-full transition-colors"><X className="w-5 h-5" /></button>
+                        </div>
+                        <form onSubmit={handleSubmit} className="grid gap-4 text-sm">
+                            <div className="grid gap-1.5">
+                                <label className="font-bold text-muted-foreground uppercase text-[10px]">Nama Lengkap</label>
+                                <input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="h-11 px-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none" />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="grid gap-1.5">
+                                    <label className="font-bold text-muted-foreground uppercase text-[10px]">Peran</label>
+                                    <input value={formData.role} onChange={e => setFormData({ ...formData, role: e.target.value })} className="h-11 px-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none" />
+                                </div>
+                                <div className="grid gap-1.5">
+                                    <label className="font-bold text-muted-foreground uppercase text-[10px]">Generasi</label>
+                                    <input type="number" value={formData.generation} onChange={e => setFormData({ ...formData, generation: parseInt(e.target.value) })} className="h-11 px-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none" />
+                                </div>
+                            </div>
+                            <div className="grid gap-1.5">
+                                <label className="font-bold text-muted-foreground uppercase text-[10px]">Status</label>
+                                <select value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value })} className="h-11 px-4 bg-muted border rounded-xl font-bold">
+                                    <option value="Active">Aktif</option>
+                                    <option value="Inactive">Wafat</option>
+                                </select>
+                            </div>
+                            <div className="grid gap-1.5">
+                                <label className="font-bold text-muted-foreground uppercase text-[10px]">Biografi Tokoh</label>
+                                <textarea rows={3} value={formData.biography} onChange={e => setFormData({ ...formData, biography: e.target.value })} className="p-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none resize-none" />
+                            </div>
+                            <button type="submit" disabled={isSubmitting} className="h-12 bg-primary text-white rounded-xl font-bold flex items-center justify-center gap-2 mt-4 shadow-lg shadow-primary/20">
+                                {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Check className="w-5 h-5" /> Simpan Perubahan</>}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
 
             {/* Custom Delete Modal */}
             {memberToDelete && (
@@ -205,12 +347,14 @@ export default function FamilyTreePage() {
     )
 }
 
-function FamilyBranch({ member, allMembers, expandedNodes, onToggle, onDelete }: {
+function FamilyBranch({ member, allMembers, expandedNodes, onToggle, onDelete, onEdit, onAddChild }: {
     member: Member,
     allMembers: Member[],
     expandedNodes: Set<string>,
     onToggle: (id: string) => void,
-    onDelete: (id: string, name: string) => void
+    onDelete: (id: string, name: string) => void,
+    onEdit: (member: Member) => void,
+    onAddChild: (member: Member) => void
 }) {
     const children = useMemo(() => allMembers.filter(m => m.parentId === member.id), [allMembers, member.id]);
     const isExpanded = expandedNodes.has(member.id);
@@ -226,6 +370,8 @@ function FamilyBranch({ member, allMembers, expandedNodes, onToggle, onDelete }:
                 <MemoizedTreeNode
                     member={member}
                     onDelete={onDelete}
+                    onEdit={onEdit}
+                    onAddChild={onAddChild}
                     hasChildren={hasChildren}
                     isExpanded={isExpanded}
                     onToggle={handleToggle}
@@ -262,6 +408,8 @@ function FamilyBranch({ member, allMembers, expandedNodes, onToggle, onDelete }:
                                             expandedNodes={expandedNodes}
                                             onToggle={onToggle}
                                             onDelete={onDelete}
+                                            onEdit={onEdit}
+                                            onAddChild={onAddChild}
                                         />
                                     </div>
                                 </div>
@@ -274,9 +422,11 @@ function FamilyBranch({ member, allMembers, expandedNodes, onToggle, onDelete }:
     );
 }
 
-function TreeNode({ member, onDelete, hasChildren, isExpanded, onToggle }: {
+function TreeNode({ member, onDelete, onEdit, onAddChild, hasChildren, isExpanded, onToggle }: {
     member: Member,
     onDelete: (id: string, name: string) => void,
+    onEdit: (member: Member) => void,
+    onAddChild: (member: Member) => void,
     hasChildren: boolean,
     isExpanded: boolean,
     onToggle: () => void
@@ -327,25 +477,34 @@ function TreeNode({ member, onDelete, hasChildren, isExpanded, onToggle }: {
                 <ChevronDown className="w-4 h-4" />
             </div>
 
-            {/* Admin Actions - Hover Based for Cleanliness */}
+            {/* Admin Actions - Improved Visibility and Hit Area */}
             <div
-                className="absolute -top-3 -right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all duration-300 z-20 scale-75 group-hover:scale-100"
+                className="absolute -top-4 -right-2 flex items-center gap-1.5 opacity-100 z-50 pointer-events-auto"
                 onClick={(e) => e.stopPropagation()}
             >
                 <button
-                    disabled
-                    className="p-1.5 bg-muted shadow-xl border border-muted-foreground/20 text-muted-foreground rounded-lg cursor-not-allowed flex items-center justify-center"
-                    title="Admin Only"
+                    type="button"
+                    onClick={() => onAddChild(member)}
+                    className="w-8 h-8 bg-white shadow-lg border border-primary/20 hover:bg-primary hover:text-white text-primary rounded-full transition-all flex items-center justify-center hover:scale-110 active:scale-90"
+                    title="Tambah Anak"
                 >
-                    <Edit2 className="w-3.5 h-3.5" />
+                    <UserPlus className="w-4 h-4" />
+                </button>
+                <button
+                    type="button"
+                    onClick={() => onEdit(member)}
+                    className="w-8 h-8 bg-white shadow-lg border border-primary/20 hover:bg-primary hover:text-white text-primary rounded-full transition-all flex items-center justify-center hover:scale-110 active:scale-90"
+                    title="Edit"
+                >
+                    <Edit2 className="w-4 h-4" />
                 </button>
                 <button
                     type="button"
                     onClick={(e) => { e.preventDefault(); e.stopPropagation(); onDelete(member.id, member.name); }}
-                    className="p-1.5 bg-white shadow-xl border border-destructive/20 hover:bg-destructive hover:text-white text-destructive rounded-lg transition-colors flex items-center justify-center"
+                    className="w-8 h-8 bg-white shadow-lg border border-destructive/20 hover:bg-destructive hover:text-white text-destructive rounded-full transition-all flex items-center justify-center hover:scale-110 active:scale-90"
                     title="Hapus"
                 >
-                    <Trash2 className="w-3.5 h-3.5" />
+                    <Trash2 className="w-4 h-4" />
                 </button>
             </div>
         </div>
