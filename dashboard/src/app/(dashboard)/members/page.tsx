@@ -133,20 +133,43 @@ export default function MemberManagement() {
                 if (error) throw error
             }
 
-            if (formData.biography || formData.birth_date || formData.birth_place || formData.partner_name || formData.death_date) {
-                const { error: bioError } = await supabase.from('family_biographies').upsert({
-                    member_id: Number(currentMemberId),
-                    bio: formData.biography || "",
-                    birth_date: formData.birth_date || null,
-                    birth_place: formData.birth_place || "",
-                    partner_name: formData.partner_name || "",
-                    head_of_family: formData.head_of_family || false,
-                    death_date: formData.death_date || null
-                }, {
-                    onConflict: 'member_id',
-                    ignoreDuplicates: false
-                })
-                if (bioError) throw bioError
+            // Always save biography data (even if fields are empty, to allow clearing)
+            const bioPayload = {
+                member_id: Number(currentMemberId),
+                bio: formData.biography || "",
+                birth_date: formData.birth_date || null,
+                birth_place: formData.birth_place || "",
+                partner_name: formData.partner_name || "",
+                head_of_family: formData.head_of_family || false,
+                death_date: formData.death_date || null
+            }
+
+            // Check if biography already exists for this member
+            const { data: existingBio } = await supabase
+                .from('family_biographies')
+                .select('id')
+                .eq('member_id', Number(currentMemberId))
+                .maybeSingle()
+
+            if (existingBio) {
+                // Update existing biography
+                const { error: bioError } = await supabase
+                    .from('family_biographies')
+                    .update(bioPayload)
+                    .eq('member_id', Number(currentMemberId))
+                if (bioError) {
+                    console.error('Bio Update Error:', bioError)
+                    throw bioError
+                }
+            } else {
+                // Insert new biography
+                const { error: bioError } = await supabase
+                    .from('family_biographies')
+                    .insert([bioPayload])
+                if (bioError) {
+                    console.error('Bio Insert Error:', bioError)
+                    throw bioError
+                }
             }
 
             alert(modalMode === 'add' ? 'Anggota berhasil ditambahkan!' : 'Data anggota berhasil diperbarui!')
