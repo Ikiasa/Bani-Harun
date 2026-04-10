@@ -89,13 +89,17 @@ export default function MemberManagement() {
         setUploadingImage(true)
         try {
             const fileExt = file.name.split('.').pop()
-            const fileName = `${Math.random()}.${fileExt}`
-            const { data, error } = await supabase.storage.from('avatars').upload(fileName, file)
+            const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
+            const filePath = `avatars/${fileName}`
+
+            const { data, error } = await supabase.storage.from('avatars').upload(filePath, file)
             if (error) throw error
             const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(data.path)
             setFormData({ ...formData, avatar: publicUrl })
+            alert('Foto berhasil diunggah')
         } catch (err: any) {
-            alert('Upload gagal: ' + err.message)
+            console.error('Upload Error:', err)
+            alert('Upload gagal: ' + (err.message || 'Error tidak diketahui'))
         } finally {
             setUploadingImage(false)
         }
@@ -106,12 +110,12 @@ export default function MemberManagement() {
         setIsSubmitting(true)
 
         try {
-            const memberPayload = {
+            const memberPayload: any = {
                 name: formData.name,
                 role: formData.role,
-                generation: formData.generation,
+                generation: Number(formData.generation),
                 status: formData.status,
-                parent_id: formData.parent_id,
+                parent_id: formData.parent_id ? Number(formData.parent_id) : null,
                 avatar: formData.avatar
             }
 
@@ -122,12 +126,14 @@ export default function MemberManagement() {
                 if (error) throw error
                 currentMemberId = data.id
             } else {
-                const { error } = await supabase.from('family_members').update(memberPayload).eq('id', targetMember.id)
+                const { error } = await supabase
+                    .from('family_members')
+                    .update(memberPayload)
+                    .eq('id', targetMember.id)
                 if (error) throw error
             }
 
             if (formData.biography || formData.birth_date || formData.birth_place || formData.partner_name || formData.death_date) {
-                // Upsert biography
                 const { error: bioError } = await supabase.from('family_biographies').upsert({
                     member_id: Number(currentMemberId),
                     bio: formData.biography || "",
@@ -136,14 +142,19 @@ export default function MemberManagement() {
                     partner_name: formData.partner_name || "",
                     head_of_family: formData.head_of_family || false,
                     death_date: formData.death_date || null
-                }, { onConflict: 'member_id' })
+                }, {
+                    onConflict: 'member_id',
+                    ignoreDuplicates: false
+                })
                 if (bioError) throw bioError
             }
 
+            alert(modalMode === 'add' ? 'Anggota berhasil ditambahkan!' : 'Data anggota berhasil diperbarui!')
             setIsModalOpen(false)
             fetchMembers()
         } catch (error: any) {
-            alert(error.message)
+            console.error('Submit Error:', error)
+            alert('Gagal menyimpan data: ' + (error.message || 'Terjadi kesalahan sistem'))
         } finally {
             setIsSubmitting(false)
         }
@@ -151,14 +162,19 @@ export default function MemberManagement() {
 
     const handleDelete = async () => {
         setIsSubmitting(true)
-        const { error } = await supabase.from('family_members').delete().eq('id', targetMember.id)
-        if (!error) {
+        try {
+            const { error } = await supabase.from('family_members').delete().eq('id', targetMember.id)
+            if (error) throw error
+
+            alert('Anggota berhasil dihapus!')
             setIsDeleteModalOpen(false)
             fetchMembers()
-        } else {
-            alert(error.message)
+        } catch (error: any) {
+            console.error('Delete Error:', error)
+            alert('Gagal menghapus anggota: ' + (error.message || 'Terjadi kesalahan'))
+        } finally {
+            setIsSubmitting(false)
         }
-        setIsSubmitting(false)
     }
 
     const filteredMembers = members.filter(m =>

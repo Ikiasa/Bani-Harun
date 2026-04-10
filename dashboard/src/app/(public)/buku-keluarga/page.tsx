@@ -4,12 +4,15 @@ import { BookPageData } from "@/lib/family-book-data"
 import { supabase } from "@/lib/supabase"
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+export const fetchCache = 'force-no-store';
 
 async function fetchPages(): Promise<BookPageData[]> {
     try {
         const { data, error } = await supabase
             .from('family_members')
-            .select('*, family_biographies(*)');
+            .select('*, family_biographies(*)')
+            .order('id', { ascending: true });
 
         if (error) throw error;
 
@@ -45,7 +48,7 @@ async function fetchPages(): Promise<BookPageData[]> {
         const sortedList: BookPageData[] = [];
         const childrenMap: Record<string, any[]> = {};
 
-        membersMap.forEach(m => {
+        membersMap.forEach((m: BookPageData) => {
             const pId = m.parentId || "root";
             if (!childrenMap[pId]) childrenMap[pId] = [];
             childrenMap[pId].push(m);
@@ -64,12 +67,12 @@ async function fetchPages(): Promise<BookPageData[]> {
             });
         };
 
-        traverse("root");
+        const traverseResult = traverse("root");
 
         // If for some reason traverse didn't catch everyone (unlikely), add orphans
         if (sortedList.length < membersMap.length) {
             const addedIds = new Set(sortedList.map(s => s.id));
-            membersMap.forEach(m => {
+            membersMap.forEach((m: BookPageData) => {
                 if (!addedIds.has(m.id)) sortedList.push(m);
             });
         }

@@ -4,6 +4,7 @@ import { Menu, Moon, Sun, Bell, Search } from "lucide-react"
 import { useTheme } from "next-themes"
 import { useEffect, useState } from "react"
 import { cn } from "@/lib/utils"
+import { supabase } from "@/lib/supabase"
 
 interface HeaderProps {
     onMenuClick: () => void
@@ -54,16 +55,34 @@ export function Header({ onMenuClick }: HeaderProps) {
                     {!mounted && <div className="w-5 h-5" />}
                 </button>
 
-                <div className="hidden sm:grid grid-cols-[auto_auto] items-center gap-3 pl-3 ml-2 border-l">
-                    <div className="grid justify-items-end">
-                        <p className="text-sm font-semibold leading-none">Bani Harun</p>
-                        <p className="text-xs text-muted-foreground mt-1">Admin</p>
-                    </div>
-                    <div className="w-8 h-8 rounded-full bg-primary/20 grid place-items-center text-primary text-[10px] font-black border border-primary/20 shadow-sm">
-                        BH
-                    </div>
-                </div>
+                {mounted && <UserNav />}
             </div>
         </header>
+    )
+}
+
+function UserNav() {
+    const [user, setUser] = useState<{ name: string } | null>(null)
+
+    useEffect(() => {
+        const fetchUser = async () => {
+            const { data: { user: sbUser } } = await supabase.auth.getUser()
+            if (sbUser) {
+                setUser({ name: sbUser.user_metadata?.name || "User" })
+            }
+        }
+        fetchUser()
+    }, [])
+
+    return (
+        <div className="hidden sm:grid grid-cols-[auto_auto] items-center gap-3 pl-3 ml-2 border-l animate-in fade-in duration-500">
+            <div className="grid justify-items-end">
+                <p className="text-sm font-bold tracking-tight leading-none">{user?.name || "Bani Harun"}</p>
+                <p className="text-[10px] font-bold text-primary/60 uppercase tracking-widest mt-1">Admin</p>
+            </div>
+            <div className="w-8 h-8 rounded-full bg-primary/20 grid place-items-center text-primary text-[10px] font-black border border-primary/20 shadow-sm">
+                {user?.name?.[0].toUpperCase() || "BH"}
+            </div>
+        </div>
     )
 }
