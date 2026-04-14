@@ -23,24 +23,40 @@ export function BirthdayReminder({ members }: BirthdayReminderProps) {
 
         members.forEach(member => {
             const bio = member.family_biographies?.[0]
+
+            // Primary Member Birthday
             if (bio?.birth_date) {
                 const bday = new Date(bio.birth_date)
                 const nextBday = new Date(today.getFullYear(), bday.getMonth(), bday.getDate())
-
-                if (nextBday < today) {
-                    nextBday.setFullYear(today.getFullYear() + 1)
-                }
+                if (nextBday < today) nextBday.setFullYear(today.getFullYear() + 1)
 
                 const diffTime = Math.abs(nextBday.getTime() - today.getTime())
                 const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-
-                // Adjust for leap years/today check
                 const isToday = diffDays === 0 || diffDays === 365 || diffDays === 366
 
                 events.push({
-                    id: String(member.id),
+                    id: `${member.id}-primary`,
                     name: member.name,
                     birthDate: bio.birth_date,
+                    daysAway: diffDays,
+                    isToday: isToday
+                })
+            }
+
+            // Partner Birthday
+            if (bio?.partner_birth_date && bio?.partner_name) {
+                const bday = new Date(bio.partner_birth_date)
+                const nextBday = new Date(today.getFullYear(), bday.getMonth(), bday.getDate())
+                if (nextBday < today) nextBday.setFullYear(today.getFullYear() + 1)
+
+                const diffTime = Math.abs(nextBday.getTime() - today.getTime())
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+                const isToday = diffDays === 0 || diffDays === 365 || diffDays === 366
+
+                events.push({
+                    id: `${member.id}-partner`,
+                    name: `${bio.partner_name} (Ps. ${member.name.split('–')[0].split('-')[0].trim()})`,
+                    birthDate: bio.partner_birth_date,
                     daysAway: diffDays,
                     isToday: isToday
                 })

@@ -37,7 +37,8 @@ export default function MemberManagement() {
         birth_place: "",
         partner_name: "",
         head_of_family: false,
-        death_date: ""
+        death_date: "",
+        partner_birth_date: ""
     })
     const [uploadingImage, setUploadingImage] = useState(false)
 
@@ -58,7 +59,7 @@ export default function MemberManagement() {
 
     const handleOpenAdd = () => {
         setModalMode('add')
-        setFormData({ name: "", role: "Member", generation: 1, status: "Active", parent_id: null, avatar: "", biography: "", birth_date: "", birth_place: "", partner_name: "", head_of_family: false, death_date: "" })
+        setFormData({ name: "", role: "Member", generation: 1, status: "Active", parent_id: null, avatar: "", biography: "", birth_date: "", birth_place: "", partner_name: "", partner_birth_date: "", head_of_family: false, death_date: "" })
         setIsModalOpen(true)
     }
 
@@ -77,6 +78,7 @@ export default function MemberManagement() {
             birth_date: bio.birth_date || "",
             birth_place: bio.birth_place || "",
             partner_name: bio.partner_name || "",
+            partner_birth_date: bio.partner_birth_date || "",
             head_of_family: bio.head_of_family || false,
             death_date: bio.death_date || ""
         })
@@ -140,6 +142,7 @@ export default function MemberManagement() {
                 birth_date: formData.birth_date || null,
                 birth_place: formData.birth_place || "",
                 partner_name: formData.partner_name || "",
+                partner_birth_date: formData.partner_birth_date || null,
                 head_of_family: formData.head_of_family || false,
                 death_date: formData.death_date || null
             }
@@ -345,8 +348,11 @@ export default function MemberManagement() {
                                 </div>
                             )}
                             <div className="grid gap-1.5">
-                                <label className="font-bold text-muted-foreground uppercase text-[10px]">Nama Pasangan (Suami/Istri)</label>
-                                <input placeholder="Tulis nama pasangan..." value={formData.partner_name} onChange={e => setFormData({ ...formData, partner_name: e.target.value })} className="h-11 px-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none" />
+                                <label className="font-bold text-muted-foreground uppercase text-[10px]">Nama Pasangan & Tgl Lahir Pasangan</label>
+                                <div className="flex gap-2">
+                                    <input placeholder="Nama Suami/Istri..." value={formData.partner_name} onChange={e => setFormData({ ...formData, partner_name: e.target.value })} className="flex-1 h-11 px-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none" />
+                                    <input type="date" value={formData.partner_birth_date} onChange={e => setFormData({ ...formData, partner_birth_date: e.target.value })} className="w-40 h-11 px-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none" />
+                                </div>
                             </div>
                             <div className="flex items-center gap-2 px-1">
                                 <input type="checkbox" id="head_of_family" checked={formData.head_of_family} onChange={e => setFormData({ ...formData, head_of_family: e.target.checked })} className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary" />
