@@ -301,6 +301,19 @@ export default function MemberManagement() {
                                     <label className="font-bold text-muted-foreground uppercase text-[10px]">Peran</label>
                                     <input value={formData.role} onChange={e => setFormData({ ...formData, role: e.target.value })} className="h-11 px-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none" />
                                 </div>
+                                <div className="grid gap-1.5">
+                                    <label className="font-bold text-muted-foreground uppercase text-[10px]">Orang Tua (Parent)</label>
+                                    <select
+                                        value={formData.parent_id || ""}
+                                        onChange={e => setFormData({ ...formData, parent_id: e.target.value || null })}
+                                        className="h-11 px-4 bg-muted border rounded-xl font-bold"
+                                    >
+                                        <option value="">Tidak Ada / Akar</option>
+                                        {members.filter(m => m.id !== targetMember?.id).map(m => (
+                                            <option key={m.id} value={m.id}>{m.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
                             </div>
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="grid gap-1.5">

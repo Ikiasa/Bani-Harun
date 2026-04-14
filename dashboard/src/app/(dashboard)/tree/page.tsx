@@ -12,6 +12,7 @@ interface Member {
     generation: number
     status: string
     parentId?: string
+    avatar?: string
 }
 
 // Memoize components to prevent re-renders when parent's state changes unrelatedly
@@ -37,6 +38,7 @@ export default function FamilyTreePage() {
         generation: 1,
         status: "Active",
         parent_id: null as string | null,
+        avatar: "",
         biography: "",
         birth_date: "",
         birth_place: "",
@@ -44,6 +46,7 @@ export default function FamilyTreePage() {
         head_of_family: false,
         death_date: ""
     })
+    const [uploadingImage, setUploadingImage] = useState(false)
 
 
     useEffect(() => {
@@ -105,296 +108,344 @@ export default function FamilyTreePage() {
             .select('*, family_biographies(*)')
             .order('id', { ascending: true });
         if (data) {
-            const formatted = data.map((item: any) => ({
-                id: String(item.id),
+            id: String(item.id),
                 name: item.name,
-                role: item.role,
-                generation: item.generation,
-                status: item.status,
-                parentId: item.parent_id ? String(item.parent_id) : undefined,
-                biography: item.family_biographies?.[0]?.bio || "",
-                birthDate: item.family_biographies?.[0]?.birth_date || "",
-                birthPlace: item.family_biographies?.[0]?.birth_place || "",
-                partnerName: item.family_biographies?.[0]?.partner_name || "",
-                headOfFamily: item.family_biographies?.[0]?.head_of_family || false,
-                deathDate: item.family_biographies?.[0]?.death_date || ""
-            }));
-            setMembers(formatted)
-        }
-        setLoading(false)
+                    role: item.role,
+                        generation: item.generation,
+                            status: item.status,
+                                parentId: item.parent_id ? String(item.parent_id) : undefined,
+                                    avatar: item.avatar || "",
+                                        biography: item.family_biographies?.[0]?.bio || "",
+                                            birthDate: item.family_biographies?.[0]?.birth_date || "",
+                                                birthPlace: item.family_biographies?.[0]?.birth_place || "",
+                                                    partnerName: item.family_biographies?.[0]?.partner_name || "",
+                                                        headOfFamily: item.family_biographies?.[0]?.head_of_family || false,
+                                                            deathDate: item.family_biographies?.[0]?.death_date || ""
+        }));
+        setMembers(formatted)
     }
+    setLoading(false)
+}
 
-    const handleOpenEdit = useCallback((member: any) => {
-        setModalMode('edit')
-        setTargetMember(member)
-        setFormData({
-            name: member.name,
-            role: member.role,
-            generation: member.generation,
-            status: member.status,
-            parent_id: member.parentId || null,
-            biography: member.biography || "",
-            birth_date: member.birthDate || "",
-            birth_place: member.birthPlace || "",
-            partner_name: member.partnerName || "",
-            head_of_family: member.headOfFamily || false,
-            death_date: member.deathDate || ""
-        })
-        setIsModalOpen(true)
-    }, [])
+const handleOpenEdit = useCallback((member: any) => {
+    setModalMode('edit')
+    setTargetMember(member)
+    setFormData({
+        name: member.name,
+        role: member.role,
+        generation: member.generation,
+        status: member.status,
+        parent_id: member.parentId || null,
+        avatar: member.avatar || "",
+        biography: member.biography || "",
+        birth_date: member.birthDate || "",
+        birth_place: member.birthPlace || "",
+        partner_name: member.partnerName || "",
+        head_of_family: member.headOfFamily || false,
+        death_date: member.deathDate || ""
+    })
+    setIsModalOpen(true)
+}, [])
 
-    const handleOpenAddChild = useCallback((parent: any) => {
-        setModalMode('add')
-        setTargetMember(parent)
-        setFormData({
-            name: "",
-            role: "Member",
-            generation: (parent.generation || 1) + 1,
-            status: "Active",
-            parent_id: parent.id,
-            biography: "",
-            birth_date: "",
-            birth_place: "",
-            partner_name: "",
-            head_of_family: false,
-            death_date: ""
-        })
-        setIsModalOpen(true)
-    }, [])
+const handleOpenAddChild = useCallback((parent: any) => {
+    setModalMode('add')
+    setTargetMember(parent)
+    setFormData({
+        name: "",
+        role: "Member",
+        generation: (parent.generation || 1) + 1,
+        status: "Active",
+        parent_id: parent.id,
+        avatar: "",
+        biography: "",
+        birth_date: "",
+        birth_place: "",
+        partner_name: "",
+        head_of_family: false,
+        death_date: ""
+    })
+    setIsModalOpen(true)
+}, [])
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault()
-        setIsSubmitting(true)
-        try {
-            const payload = {
-                name: formData.name,
-                role: formData.role,
-                generation: formData.generation,
-                status: formData.status,
-                parent_id: formData.parent_id
-            }
+const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingImage(true)
+    try {
+        const fileExt = file.name.split('.').pop()
+        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
+        const filePath = `avatars/${fileName}`
 
-            let memberId = targetMember?.id
-
-            if (modalMode === 'add') {
-                const { data, error } = await supabase.from('family_members').insert([payload]).select('id').single()
-                if (error) throw error
-                memberId = data.id
-            } else {
-                const { error } = await supabase.from('family_members').update(payload).eq('id', targetMember.id)
-                if (error) throw error
-            }
-
-            if (formData.biography || formData.birth_date || formData.birth_place || formData.partner_name || formData.death_date) {
-                await supabase.from('family_biographies').upsert({
-                    member_id: Number(memberId),
-                    bio: formData.biography || "",
-                    birth_date: formData.birth_date || null,
-                    birth_place: formData.birth_place || "",
-                    partner_name: formData.partner_name || "",
-                    head_of_family: formData.head_of_family || false,
-                    death_date: formData.death_date || null
-                }, { onConflict: 'member_id' })
-            }
-
-            setIsModalOpen(false)
-            fetchTreeData()
-        } catch (err: any) {
-            alert(err.message)
-        } finally {
-            setIsSubmitting(false)
-        }
+        const { data, error } = await supabase.storage.from('avatars').upload(filePath, file)
+        if (error) throw error
+        const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(data.path)
+        setFormData(prev => ({ ...prev, avatar: publicUrl }))
+        alert('Foto berhasil diunggah')
+    } catch (err: any) {
+        console.error('Upload Error:', err)
+        alert('Upload gagal: ' + (err.message || 'Error tidak diketahui'))
+    } finally {
+        setUploadingImage(false)
     }
+}
 
-    const confirmDelete = async () => {
-        if (!memberToDelete || isDeleting) return
-        setIsDeleting(true)
-        try {
-            const { error } = await supabase.from('family_members').delete().eq('id', memberToDelete.id);
-            if (!error) {
-                setMembers(prev => prev.filter(m => m.id !== memberToDelete.id));
-                setMemberToDelete(null)
-            } else {
-                alert(error.message || "Gagal menghapus anggota.");
-            }
-        } catch (err) {
-            console.error("Error deleting member", err);
-            alert("Terjadi koneksi gagal ke server.");
-        } finally {
-            setIsDeleting(false)
+const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setIsSubmitting(true)
+    try {
+        const isNumericId = !isNaN(Number(formData.parent_id)) && formData.parent_id !== null;
+
+        const payload: any = {
+            name: formData.name,
+            role: formData.role,
+            generation: Number(formData.generation),
+            status: formData.status,
+            parent_id: isNumericId ? Number(formData.parent_id) : formData.parent_id,
+            avatar: formData.avatar
         }
+
+        let memberId = targetMember?.id
+
+        if (modalMode === 'add') {
+            const { data, error } = await supabase.from('family_members').insert([payload]).select('id').single()
+            if (error) throw error
+            memberId = data.id
+        } else {
+            const { error } = await supabase.from('family_members').update(payload).eq('id', targetMember.id)
+            if (error) throw error
+        }
+
+        // Standardized Bio logic from members/page.tsx
+        const bioPayload = {
+            member_id: Number(memberId),
+            bio: formData.biography || "",
+            birth_date: formData.birth_date || null,
+            birth_place: formData.birth_place || "",
+            partner_name: formData.partner_name || "",
+            head_of_family: formData.head_of_family || false,
+            death_date: formData.death_date || null
+        }
+
+        const { data: existingBio } = await supabase
+            .from('family_biographies')
+            .select('id')
+            .eq('member_id', Number(memberId))
+            .maybeSingle()
+
+        if (existingBio) {
+            await supabase.from('family_biographies').update(bioPayload).eq('member_id', Number(memberId))
+        } else {
+            await supabase.from('family_biographies').insert([bioPayload])
+        }
+
+        setIsModalOpen(false)
+        fetchTreeData()
+        alert(modalMode === 'add' ? 'Anggota berhasil ditambahkan!' : 'Data anggota berhasil diperbarui!')
+    } catch (err: any) {
+        alert(err.message)
+    } finally {
+        setIsSubmitting(false)
     }
+}
 
-    const roots = useMemo(() => members.filter(m => !m.parentId), [members]);
+const confirmDelete = async () => {
+    if (!memberToDelete || isDeleting) return
+    setIsDeleting(true)
+    try {
+        const { error } = await supabase.from('family_members').delete().eq('id', memberToDelete.id);
+        if (!error) {
+            setMembers(prev => prev.filter(m => m.id !== memberToDelete.id));
+            setMemberToDelete(null)
+        } else {
+            alert(error.message || "Gagal menghapus anggota.");
+        }
+    } catch (err) {
+        console.error("Error deleting member", err);
+        alert("Terjadi koneksi gagal ke server.");
+    } finally {
+        setIsDeleting(false)
+    }
+}
 
-    if (!isMounted || loading) return (
-        <div className="p-20 text-center space-y-4">
-            <Loader2 className="w-10 h-10 animate-spin mx-auto text-primary/40" />
-            <p className="text-muted-foreground animate-pulse font-medium italic">Menghubungkan ke arsip keluarga...</p>
-        </div>
-    );
+const roots = useMemo(() => members.filter(m => !m.parentId), [members]);
 
-    return (
-        <div className="w-full h-full overflow-x-auto overflow-y-auto pb-40 no-print scroll-smooth">
-            <div className="min-w-max flex flex-col items-center gap-16 animate-in zoom-in-95 duration-500 p-12 lg:p-20">
-                {/* Header / Info */}
-                <div className="w-full max-w-4xl bg-white/60 backdrop-blur-md border border-primary/10 p-5 rounded-3xl flex flex-col md:flex-row items-center justify-between text-sm gap-6 shadow-xl shadow-primary/5">
-                    <div className="flex flex-col">
-                        <h1 className="text-2xl font-bold text-primary flex items-center gap-3">
-                            <TreePine className="w-6 h-6" />
-                            Pohon Keluarga Bani Harun
-                        </h1>
-                        <p className="text-muted-foreground italic text-xs mt-1">Gunakan mouse untuk menggeser dan klik untuk melihat keturunan</p>
-                    </div>
-                    <div className="flex gap-6 items-center">
-                        <div className="flex items-center gap-3">
-                            <div className="flex items-center gap-1.5">
-                                <div className="w-2.5 h-2.5 rounded-full bg-primary" title="Hidup" />
-                                <span className="text-xs font-medium">Hidup</span>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                                <div className="w-2.5 h-2.5 rounded-full bg-muted-foreground/30" title="Wafat" />
-                                <span className="text-xs font-medium">Wafat</span>
-                            </div>
-                        </div>
-                        <button
-                            onClick={() => window.print()}
-                            className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary/90 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-primary/20 no-print font-medium text-xs"
-                        >
-                            <Printer className="w-4 h-4" />
-                            <span>Cetak Silsilah</span>
-                        </button>
-                    </div>
+if (!isMounted || loading) return (
+    <div className="p-20 text-center space-y-4">
+        <Loader2 className="w-10 h-10 animate-spin mx-auto text-primary/40" />
+        <p className="text-muted-foreground animate-pulse font-medium italic">Menghubungkan ke arsip keluarga...</p>
+    </div>
+);
+
+return (
+    <div className="w-full h-full overflow-x-auto overflow-y-auto pb-40 no-print scroll-smooth">
+        <div className="min-w-max flex flex-col items-center gap-16 animate-in zoom-in-95 duration-500 p-12 lg:p-20">
+            {/* Header / Info */}
+            <div className="w-full max-w-4xl bg-white/60 backdrop-blur-md border border-primary/10 p-5 rounded-3xl flex flex-col md:flex-row items-center justify-between text-sm gap-6 shadow-xl shadow-primary/5">
+                <div className="flex flex-col">
+                    <h1 className="text-2xl font-bold text-primary flex items-center gap-3">
+                        <TreePine className="w-6 h-6" />
+                        Pohon Keluarga Bani Harun
+                    </h1>
+                    <p className="text-muted-foreground italic text-xs mt-1">Gunakan mouse untuk menggeser dan klik untuk melihat keturunan</p>
                 </div>
-
-                {/* Tree Root Container */}
-                <div className="flex flex-col items-center gap-24 pt-8 min-w-max">
-                    {roots.map(root => (
-                        <MemoizedFamilyBranch
-                            key={root.id}
-                            member={root}
-                            allMembers={members}
-                            expandedNodes={expandedNodes}
-                            onToggle={toggleNode}
-                            onDelete={deleteMember}
-                            onEdit={handleOpenEdit}
-                            onAddChild={handleOpenAddChild}
-                        />
-                    ))}
+                <div className="flex gap-6 items-center">
+                    <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-1.5">
+                            <div className="w-2.5 h-2.5 rounded-full bg-primary" title="Hidup" />
+                            <span className="text-xs font-medium">Hidup</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                            <div className="w-2.5 h-2.5 rounded-full bg-muted-foreground/30" title="Wafat" />
+                            <span className="text-xs font-medium">Wafat</span>
+                        </div>
+                    </div>
+                    <button
+                        onClick={() => window.print()}
+                        className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl hover:bg-primary/90 transition-all hover:scale-105 active:scale-95 shadow-lg shadow-primary/20 no-print font-medium text-xs"
+                    >
+                        <Printer className="w-4 h-4" />
+                        <span>Cetak Silsilah</span>
+                    </button>
                 </div>
             </div>
 
-            {/* Edit/Add Modal */}
-            {isModalOpen && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-md animate-in fade-in">
-                    <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95 grid gap-6">
-                        <div className="flex justify-between items-center">
-                            <h2 className="text-xl font-bold">{modalMode === 'add' ? `Tambah Anak ${targetMember?.name}` : 'Edit Anggota'}</h2>
-                            <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-muted rounded-full transition-colors"><X className="w-5 h-5" /></button>
-                        </div>
-                        <form onSubmit={handleSubmit} className="grid gap-4 text-sm">
-                            <div className="grid gap-1.5">
-                                <label className="font-bold text-muted-foreground uppercase text-[10px]">Nama Lengkap</label>
-                                <input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="h-11 px-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none" />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="grid gap-1.5">
-                                    <label className="font-bold text-muted-foreground uppercase text-[10px]">Peran</label>
-                                    <input value={formData.role} onChange={e => setFormData({ ...formData, role: e.target.value })} className="h-11 px-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none" />
-                                </div>
-                                <div className="grid gap-1.5">
-                                    <label className="font-bold text-muted-foreground uppercase text-[10px]">Generasi</label>
-                                    <input type="number" value={formData.generation} onChange={e => setFormData({ ...formData, generation: parseInt(e.target.value) })} className="h-11 px-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none" />
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <div className="grid gap-1.5">
-                                    <label className="font-bold text-muted-foreground uppercase text-[10px]">Tempat Lahir</label>
-                                    <input placeholder="Contoh: Jakarta" value={formData.birth_place} onChange={e => setFormData({ ...formData, birth_place: e.target.value })} className="h-11 px-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none" />
-                                </div>
-                                <div className="grid gap-1.5">
-                                    <label className="font-bold text-muted-foreground uppercase text-[10px]">Tanggal Lahir</label>
-                                    <input type="date" value={formData.birth_date} onChange={e => setFormData({ ...formData, birth_date: e.target.value })} className="h-11 px-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none" />
-                                </div>
-                            </div>
-
-                            {formData.status === "Wafat" && (
-                                <div className="grid gap-1.5 p-3 bg-destructive/5 border border-destructive/10 rounded-xl">
-                                    <label className="font-bold text-destructive uppercase text-[10px]">Tanggal Wafat (Untuk Haul)</label>
-                                    <input type="date" value={formData.death_date} onChange={e => setFormData({ ...formData, death_date: e.target.value })} className="h-11 px-4 bg-white border border-destructive/20 rounded-xl focus:ring-2 focus:ring-destructive/20 focus:outline-none text-destructive" />
-                                </div>
-                            )}
-                            <div className="grid gap-1.5">
-                                <label className="font-bold text-muted-foreground uppercase text-[10px]">Nama Pasangan (Suami/Istri)</label>
-                                <input placeholder="Tulis nama pasangan..." value={formData.partner_name} onChange={e => setFormData({ ...formData, partner_name: e.target.value })} className="h-11 px-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none" />
-                            </div>
-                            <div className="flex items-center gap-2 px-1">
-                                <input type="checkbox" id="head_of_family_tree" checked={formData.head_of_family} onChange={e => setFormData({ ...formData, head_of_family: e.target.checked })} className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary" />
-                                <label htmlFor="head_of_family_tree" className="text-xs font-bold text-muted-foreground uppercase">Tandai Sebagai Kepala Keluarga</label>
-                            </div>
-                            <div className="grid gap-1.5">
-                                <label className="font-bold text-muted-foreground uppercase text-[10px]">Status</label>
-                                <select value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value })} className="h-11 px-4 bg-muted border rounded-xl font-bold">
-                                    <option value="Active">Aktif (Hidup)</option>
-                                    <option value="Wafat">Wafat</option>
-                                </select>
-                            </div>
-                            <div className="grid gap-1.5">
-                                <label className="font-bold text-muted-foreground uppercase text-[10px]">Biografi Tokoh</label>
-                                <textarea rows={3} value={formData.biography} onChange={e => setFormData({ ...formData, biography: e.target.value })} className="p-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none resize-none" />
-                            </div>
-                            <button type="submit" disabled={isSubmitting} className="h-12 bg-primary text-white rounded-xl font-bold flex items-center justify-center gap-2 mt-4 shadow-lg shadow-primary/20">
-                                {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Check className="w-5 h-5" /> Simpan Perubahan</>}
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            )}
-
-            {/* Custom Delete Modal */}
-            {memberToDelete && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-md animate-in fade-in duration-300">
-                    <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-300 border-2 border-primary/5">
-                        <div className="flex flex-col items-center text-center gap-4">
-                            <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center text-destructive mb-2">
-                                <Trash2 className="w-8 h-8" />
-                            </div>
-                            <h2 className="text-xl font-bold text-foreground">Konfirmasi Hapus</h2>
-                            <p className="text-muted-foreground text-sm leading-relaxed">
-                                Apakah Anda yakin ingin menghapus <strong className="text-foreground">{memberToDelete.name}</strong> dari silsilah keluarga?
-                                <br />
-                                <span className="text-[10px] text-destructive italic mt-2 block opacity-80 uppercase tracking-wider font-semibold underline underline-offset-4 decoration-2">Tindakan ini tidak dapat dibatalkan.</span>
-                            </p>
-
-                            <div className="flex gap-3 w-full mt-6">
-                                <button
-                                    onClick={() => setMemberToDelete(null)}
-                                    disabled={isDeleting}
-                                    className="flex-1 px-4 py-3 bg-secondary text-secondary-foreground rounded-2xl hover:bg-secondary/80 transition-colors font-bold text-sm"
-                                >
-                                    Batalkan
-                                </button>
-                                <button
-                                    onClick={confirmDelete}
-                                    disabled={isDeleting}
-                                    className="flex-1 px-4 py-3 bg-destructive text-white rounded-2xl hover:bg-destructive/90 transition-all font-bold text-sm shadow-lg shadow-destructive/20 flex items-center justify-center gap-2"
-                                >
-                                    {isDeleting ? (
-                                        <>
-                                            <Loader2 className="w-4 h-4 animate-spin" />
-                                            <span>Menghapus...</span>
-                                        </>
-                                    ) : (
-                                        <span>Ya, Hapus</span>
-                                    )}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* Tree Root Container */}
+            <div className="flex flex-col items-center gap-24 pt-8 min-w-max">
+                {roots.map(root => (
+                    <MemoizedFamilyBranch
+                        key={root.id}
+                        member={root}
+                        allMembers={members}
+                        expandedNodes={expandedNodes}
+                        onToggle={toggleNode}
+                        onDelete={deleteMember}
+                        onEdit={handleOpenEdit}
+                        onAddChild={handleOpenAddChild}
+                    />
+                ))}
+            </div>
         </div>
-    )
+
+        {/* Edit/Add Modal */}
+        {isModalOpen && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-md animate-in fade-in">
+                <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl animate-in zoom-in-95 grid gap-6">
+                    <div className="flex justify-between items-center">
+                        <h2 className="text-xl font-bold">{modalMode === 'add' ? `Tambah Anak ${targetMember?.name}` : 'Edit Anggota'}</h2>
+                        <button onClick={() => setIsModalOpen(false)} className="p-2 hover:bg-muted rounded-full transition-colors"><X className="w-5 h-5" /></button>
+                    </div>
+                    <form onSubmit={handleSubmit} className="grid gap-4 text-sm">
+                        <div className="grid gap-1.5">
+                            <label className="font-bold text-muted-foreground uppercase text-[10px]">Nama Lengkap</label>
+                            <input required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="h-11 px-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none" />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="grid gap-1.5">
+                                <label className="font-bold text-muted-foreground uppercase text-[10px]">Peran</label>
+                                <input value={formData.role} onChange={e => setFormData({ ...formData, role: e.target.value })} className="h-11 px-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none" />
+                            </div>
+                            <div className="grid gap-1.5">
+                                <label className="font-bold text-muted-foreground uppercase text-[10px]">Generasi</label>
+                                <input type="number" value={formData.generation} onChange={e => setFormData({ ...formData, generation: parseInt(e.target.value) })} className="h-11 px-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none" />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="grid gap-1.5">
+                                <label className="font-bold text-muted-foreground uppercase text-[10px]">Tempat Lahir</label>
+                                <input placeholder="Contoh: Jakarta" value={formData.birth_place} onChange={e => setFormData({ ...formData, birth_place: e.target.value })} className="h-11 px-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none" />
+                            </div>
+                            <div className="grid gap-1.5">
+                                <label className="font-bold text-muted-foreground uppercase text-[10px]">Tanggal Lahir</label>
+                                <input type="date" value={formData.birth_date} onChange={e => setFormData({ ...formData, birth_date: e.target.value })} className="h-11 px-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none" />
+                            </div>
+                        </div>
+
+                        {formData.status === "Wafat" && (
+                            <div className="grid gap-1.5 p-3 bg-destructive/5 border border-destructive/10 rounded-xl">
+                                <label className="font-bold text-destructive uppercase text-[10px]">Tanggal Wafat (Untuk Haul)</label>
+                                <input type="date" value={formData.death_date} onChange={e => setFormData({ ...formData, death_date: e.target.value })} className="h-11 px-4 bg-white border border-destructive/20 rounded-xl focus:ring-2 focus:ring-destructive/20 focus:outline-none text-destructive" />
+                            </div>
+                        )}
+                        <div className="grid gap-1.5">
+                            <label className="font-bold text-muted-foreground uppercase text-[10px]">Nama Pasangan (Suami/Istri)</label>
+                            <input placeholder="Tulis nama pasangan..." value={formData.partner_name} onChange={e => setFormData({ ...formData, partner_name: e.target.value })} className="h-11 px-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none" />
+                        </div>
+                        <div className="flex items-center gap-2 px-1">
+                            <input type="checkbox" id="head_of_family_tree" checked={formData.head_of_family} onChange={e => setFormData({ ...formData, head_of_family: e.target.checked })} className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary" />
+                            <label htmlFor="head_of_family_tree" className="text-xs font-bold text-muted-foreground uppercase">Tandai Sebagai Kepala Keluarga</label>
+                        </div>
+                        <div className="grid gap-1.5">
+                            <label className="font-bold text-muted-foreground uppercase text-[10px]">Foto Profil (Upload)</label>
+                            <div className="flex items-center gap-3">
+                                {formData.avatar && <img src={formData.avatar} alt="Preview" className="w-10 h-10 rounded-full object-cover border" />}
+                                <input type="file" accept="image/*" onChange={handlePhotoUpload} disabled={uploadingImage} className="flex-1 text-xs file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 transition-colors" />
+                                {uploadingImage && <Loader2 className="w-4 h-4 animate-spin text-primary" />}
+                            </div>
+                            <input placeholder="Atau Tempel URL Foto..." value={formData.avatar} onChange={e => setFormData({ ...formData, avatar: e.target.value })} className="h-9 px-4 text-xs bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 mt-1" />
+                        </div>
+                        <div className="grid gap-1.5">
+                            <label className="font-bold text-muted-foreground uppercase text-[10px]">Status</label>
+                            <select value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value })} className="h-11 px-4 bg-muted border rounded-xl font-bold">
+                                <option value="Active">Aktif (Hidup)</option>
+                                <option value="Wafat">Wafat</option>
+                            </select>
+                        </div>
+                        <div className="grid gap-1.5">
+                            <label className="font-bold text-muted-foreground uppercase text-[10px]">Biografi Tokoh</label>
+                            <textarea rows={3} value={formData.biography} onChange={e => setFormData({ ...formData, biography: e.target.value })} className="p-4 bg-muted border rounded-xl focus:ring-2 focus:ring-primary/20 focus:outline-none resize-none" />
+                        </div>
+                        <button type="submit" disabled={isSubmitting} className="h-12 bg-primary text-white rounded-xl font-bold flex items-center justify-center gap-2 mt-4 shadow-lg shadow-primary/20">
+                            {isSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <><Check className="w-5 h-5" /> Simpan Perubahan</>}
+                        </button>
+                    </form>
+                </div>
+            </div>
+        )}
+
+        {/* Custom Delete Modal */}
+        {memberToDelete && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/40 backdrop-blur-md animate-in fade-in duration-300">
+                <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-300 border-2 border-primary/5">
+                    <div className="flex flex-col items-center text-center gap-4">
+                        <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center text-destructive mb-2">
+                            <Trash2 className="w-8 h-8" />
+                        </div>
+                        <h2 className="text-xl font-bold text-foreground">Konfirmasi Hapus</h2>
+                        <p className="text-muted-foreground text-sm leading-relaxed">
+                            Apakah Anda yakin ingin menghapus <strong className="text-foreground">{memberToDelete.name}</strong> dari silsilah keluarga?
+                            <br />
+                            <span className="text-[10px] text-destructive italic mt-2 block opacity-80 uppercase tracking-wider font-semibold underline underline-offset-4 decoration-2">Tindakan ini tidak dapat dibatalkan.</span>
+                        </p>
+
+                        <div className="flex gap-3 w-full mt-6">
+                            <button
+                                onClick={() => setMemberToDelete(null)}
+                                disabled={isDeleting}
+                                className="flex-1 px-4 py-3 bg-secondary text-secondary-foreground rounded-2xl hover:bg-secondary/80 transition-colors font-bold text-sm"
+                            >
+                                Batalkan
+                            </button>
+                            <button
+                                onClick={confirmDelete}
+                                disabled={isDeleting}
+                                className="flex-1 px-4 py-3 bg-destructive text-white rounded-2xl hover:bg-destructive/90 transition-all font-bold text-sm shadow-lg shadow-destructive/20 flex items-center justify-center gap-2"
+                            >
+                                {isDeleting ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        <span>Menghapus...</span>
+                                    </>
+                                ) : (
+                                    <span>Ya, Hapus</span>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        )}
+    </div>
+)
 }
 
 function FamilyBranch({ member, allMembers, expandedNodes, onToggle, onDelete, onEdit, onAddChild }: {
@@ -500,10 +551,14 @@ function TreeNode({ member, onDelete, onEdit, onAddChild, hasChildren, isExpande
         >
             {/* Avatar / Initials */}
             <div className={cn(
-                "w-11 h-11 rounded-full flex items-center justify-center font-serif text-lg border-2 transition-transform group-hover:scale-110 shadow-inner",
+                "w-11 h-11 rounded-full flex items-center justify-center font-serif text-lg border-2 transition-transform group-hover:scale-110 shadow-inner overflow-hidden",
                 isDead ? "bg-muted text-muted-foreground border-muted-foreground/20" : "bg-primary/10 text-primary border-primary/20"
             )}>
-                {initials}
+                {member.avatar ? (
+                    <img src={member.avatar} alt={member.name} className="w-full h-full object-cover" />
+                ) : (
+                    initials
+                )}
             </div>
 
             <div className="text-center overflow-hidden w-full px-1">
