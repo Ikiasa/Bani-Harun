@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server'
 export function middleware(request: NextRequest) {
     const path = request.nextUrl.pathname
 
-    const isPublicPath = path === '/login' || path === '/signup' || path === '/buku-keluarga' || path.startsWith('/buku-keluarga/')
+    const isPublicPath = path === '/login' || path === '/signup' || path === '/buku-keluarga' || path.startsWith('/buku-keluarga/') || path === '/silsilah'
     const token = request.cookies.get('bh-auth-token')?.value
 
     if (!isPublicPath && !token) {
