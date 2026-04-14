@@ -5,6 +5,7 @@ import { RecentMembers } from "@/components/dashboard/recent-members"
 import { EventSummary } from "@/components/dashboard/event-summary"
 import { Users, Calendar, Wallet, TrendingUp, Heart } from "lucide-react"
 import { HaulCalendar } from "@/components/dashboard/haul-calendar"
+import { BirthdayReminder } from "@/components/dashboard/birthday-reminder"
 
 import { supabase } from "@/lib/supabase"
 
@@ -104,13 +105,16 @@ export default async function DashboardHome() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <div className="lg:col-span-4 transition-all hover:translate-y-[-2px] duration-300">
+        <div className="lg:col-span-4 xl:col-span-3 transition-all hover:translate-y-[-2px] duration-300">
           <RecentMembers members={members} />
         </div>
-        <div className="lg:col-span-4 transition-all hover:translate-y-[-2px] duration-300">
+        <div className="lg:col-span-4 xl:col-span-3 transition-all hover:translate-y-[-2px] duration-300">
           <HaulCalendar members={membersWithBio} />
         </div>
-        <div className="lg:col-span-4 transition-all hover:translate-y-[-2px] duration-300">
+        <div className="lg:col-span-4 xl:col-span-3 transition-all hover:translate-y-[-2px] duration-300">
+          <BirthdayReminder members={membersWithBio} />
+        </div>
+        <div className="lg:col-span-12 xl:col-span-3 transition-all hover:translate-y-[-2px] duration-300">
           <EventSummary events={events} />
         </div>
       </div>
